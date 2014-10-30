@@ -5,7 +5,7 @@ import menpo.io as mio
 from menpo.transform import Scale
 from menpo.fitmultilevel.functions import compute_error
 
-from fg2015.image import Image
+from cvpr2015.image import Image
 
 
 # Abstract Interface for Results ----------------------------------------------

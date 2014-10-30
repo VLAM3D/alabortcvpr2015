@@ -9,10 +9,11 @@ cython_exts = cythonize(cython_modules, quiet=True)
 include_dirs = [np.get_include()]
 
 requirements = ['menpo>=0.3.0',
+                'menpofit>=0.0.1',
                 'scikit-image>=0.10.1']
 
 setup(name='cvpr2015',
-      version='0.0',
+      version='0.0.1',
       description='AAM repository',
       author='Joan Alabort-i-Medina',
       author_email='joan.alabort@gmail.com',

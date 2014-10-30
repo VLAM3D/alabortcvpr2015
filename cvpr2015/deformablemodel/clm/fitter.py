@@ -1,7 +1,7 @@
 from __future__ import division
 
-from fg2015.deformablemodel.fitter import Fitter
-from fg2015.deformablemodel.pdm import OrthoPDM
+from cvpr2015.deformablemodel.fitter import Fitter
+from cvpr2015.deformablemodel.pdm import OrthoPDM
 
 from .algorithm import RLMS
 

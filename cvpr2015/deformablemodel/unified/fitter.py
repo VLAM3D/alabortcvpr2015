@@ -5,9 +5,9 @@ import numpy as np
 from menpo.transform import Scale, AlignmentAffine
 from menpo.fitmultilevel.functions import noisy_align, align_shape_with_bb
 
-from fg2015.utils import fsmooth
-from fg2015.deformablemodel.pdm import OrthoPDM
-from fg2015.deformablemodel.transform import OrthoMDTransform
+from cvpr2015.utils import fsmooth
+from cvpr2015.deformablemodel.pdm import OrthoPDM
+from cvpr2015.deformablemodel.transform import OrthoMDTransform
 
 from .algorithm import GlobalAAMInterface, PartsAAMInterface, AIC
 from .result import AAMFitterResult

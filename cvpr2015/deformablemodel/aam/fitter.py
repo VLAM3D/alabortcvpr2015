@@ -1,8 +1,8 @@
 from __future__ import division
 
-from fg2015.deformablemodel.fitter import Fitter
-from fg2015.deformablemodel.pdm import OrthoPDM
-from fg2015.deformablemodel.transform import OrthoMDTransform
+from cvpr2015.deformablemodel.fitter import Fitter
+from cvpr2015.deformablemodel.pdm import OrthoPDM
+from cvpr2015.deformablemodel.transform import OrthoMDTransform
 
 from .algorithm import GlobalAAMInterface, PartsAAMInterface, AIC
 

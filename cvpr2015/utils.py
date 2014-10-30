@@ -6,7 +6,7 @@ from skimage.filter import gaussian_filter
 from menpo.shape import TriMesh
 from menpo.transform import Translation
 
-from fg2015.image.cython import extract_patches
+from cvpr2015.image.cython import extract_patches
 from .image import Image, MaskedImage, BooleanImage
 
 

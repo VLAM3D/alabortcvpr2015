@@ -1,6 +1,6 @@
 from __future__ import division
 
-from fg2015.deformablemodel.result import AlgorithmResult, FitterResult
+from cvpr2015.deformablemodel.result import AlgorithmResult, FitterResult
 
 
 # Concrete Implementations of CLM Algorithm Results #--------------------------

@@ -3,7 +3,7 @@ import wrapt
 
 from menpo.transform import Translation, NonUniformScale
 
-from fg2015.image import Image, MaskedImage, BooleanImage
+from cvpr2015.image import Image, MaskedImage, BooleanImage
 
 
 def lm_centres_correction(centres):

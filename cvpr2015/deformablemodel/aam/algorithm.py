@@ -2,8 +2,8 @@ from __future__ import division
 import abc
 import numpy as np
 
-from fg2015.feature import gradient as fast_gradient
-from fg2015.utils import build_parts_image
+from cvpr2015.feature import gradient as fast_gradient
+from cvpr2015.utils import build_parts_image
 
 from .result import AAMAlgorithmResult
 

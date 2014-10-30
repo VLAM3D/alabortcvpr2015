@@ -646,7 +646,7 @@ class MaskedImage(Image):
         """
         global binary_erosion, gradient
         if gradient is None:
-            from fg2015.feature import gradient
+            from cvpr2015.feature import gradient
             # reference
         # use the feature to take the gradient as normal
         grad_image = gradient(self)

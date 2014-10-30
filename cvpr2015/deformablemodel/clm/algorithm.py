@@ -2,7 +2,7 @@ from __future__ import division
 import abc
 import numpy as np
 
-from fg2015.utils import build_parts_image, build_sampling_grid
+from cvpr2015.utils import build_parts_image, build_sampling_grid
 
 from .result import CLMAlgorithmResult
 
