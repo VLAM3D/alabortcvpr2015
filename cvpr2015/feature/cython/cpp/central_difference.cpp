@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include "central_differences.h"
+#include "central_difference.h"
+#include "central_difference.h"
 
 static inline int SUB2IND(const int j, const int i, const int k, const int row_size, const int col_size, const int n_channels) {
     //return ((i + col_size * j) * n_channels) + k;
