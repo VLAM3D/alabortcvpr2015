@@ -4,7 +4,7 @@ import numpy as np
 
 from menpo.shape import TriMesh
 
-from fg2015.utils import build_reference_frame
+from cvpr2015.utils import build_reference_frame
 
 
 # Abstract Interface for AAM Objects ------------------------------------------

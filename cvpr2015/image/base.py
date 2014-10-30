@@ -464,7 +464,7 @@ class Image(Vectorizable, LandmarkableViewable):
                 bin_edges.append(c_tmp)
         return hist, bin_edges
 
-    def _view(self, figure_id=None, new_figure=False, channels=None,
+    def view(self, figure_id=None, new_figure=False, channels=None,
               **kwargs):
         r"""
         View the image using the default image viewer. Currently only
@@ -483,6 +483,19 @@ class Image(Vectorizable, LandmarkableViewable):
         pixels_to_view = np.rollaxis(self.pixels, 0, self.n_dims+1)
         return ImageViewer(figure_id, new_figure, self.n_dims,
                            pixels_to_view, channels=channels).render(**kwargs)
+
+    def view_widget(self, popup=False):
+        r"""
+        Visualizes the image object using the
+        menpo.visualize.widgets.visualize_images widget.
+
+        Parameters
+        -----------
+        popup : `boolean`, optional
+            If enabled, the widget will appear as a popup window.
+        """
+        from menpo.visualize import visualize_images
+        visualize_images(self, figure_size=(7, 7), popup=popup)
 
     def glyph(self, vectors_block_size=10, use_negative=False, channels=None):
         r"""

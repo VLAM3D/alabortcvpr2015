@@ -30,6 +30,27 @@ def convert_from_menpo(menpo_image):
     return image
 
 
+def convert_to_menpo(image):
+
+    cls = eval(type(image).__name__)
+
+    if cls is Image:
+        menpo_image = cls(np.rollaxis(image.pixels,  0, image.n_dims+1),
+                          copy=True)
+    elif cls is MaskedImage:
+        menpo_image = cls(np.rollaxis(image.pixels, 0, image.n_dims+1),
+                          mask=image.mask.pixels[0, ...], copy=True)
+    elif cls is BooleanImage:
+        menpo_image = cls(image.pixels[0, ...], copy=True)
+    else:
+        raise ValueError('{} is not a cvpr2015 image class'.format(cls))
+
+    if image.has_landmarks:
+        menpo_image.landmarks = image.landmarks
+
+    return menpo_image
+
+
 def build_reference_frame(landmarks, boundary=3, group='source', trilist=None):
     r"""
     Builds a reference frame from a particular set of landmarks.
