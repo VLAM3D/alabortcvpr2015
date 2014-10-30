@@ -1,7 +1,9 @@
 import numpy as np
 
-from menpo.base import DP, Targetable, Vectorizable
+from menpo.base import Targetable, Vectorizable
 from menpo.transform import Transform
+
+from menpofit.transform import DP
 
 
 class ModelDrivenTransform(Transform, Targetable, Vectorizable, DP):

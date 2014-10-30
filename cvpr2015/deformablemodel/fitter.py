@@ -3,7 +3,9 @@ import abc
 import numpy as np
 
 from menpo.transform import Scale, AlignmentAffine
-from menpo.fitmultilevel.functions import noisy_align, align_shape_with_bb
+
+from menpofit.base import noisy_align
+from menpofit.fitter import align_shape_with_bb
 
 from cvpr2015.utils import fsmooth
 

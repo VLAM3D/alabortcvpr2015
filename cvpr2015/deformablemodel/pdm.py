@@ -1,9 +1,9 @@
 import numpy as np
 
-from menpo.base import DP
 from menpo.transform import AlignmentSimilarity
-from menpo.model import Similarity2dInstanceModel
-from menpo.model.modelinstance import ModelInstance
+
+from menpofit.transform import DP
+from menpofit.modelinstance import ModelInstance, similarity_2d_instance_model
 
 
 # Point Distribution Models ---------------------------------------------------
@@ -195,7 +195,7 @@ class OrthoPDM(GlobalPDM):
     """
     def __init__(self, model, sigma2=1):
         # 1. Construct similarity model from the mean of the model
-        self.similarity_model = Similarity2dInstanceModel(model.mean)
+        self.similarity_model = similarity_2d_instance_model(model.mean)
         # 2. Orthonormalize model and similarity model
         model_cpy = model.copy()
         model_cpy.orthonormalize_against_inplace(self.similarity_model)

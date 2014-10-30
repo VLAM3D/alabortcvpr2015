@@ -3,7 +3,8 @@ import abc
 import menpo.io as mio
 
 from menpo.transform import Scale
-from menpo.fitmultilevel.functions import compute_error
+
+from menpofit.fittingresult import compute_error
 
 from cvpr2015.image import Image
 

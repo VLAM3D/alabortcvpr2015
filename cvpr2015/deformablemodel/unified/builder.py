@@ -9,7 +9,7 @@ from menpo.model import PCAModel
 from menpo.shape import mean_pointcloud
 from menpo.visualize import print_dynamic, progress_bar_str
 
-from fg2015.utils import fsmooth, build_parts_image, build_reference_frame
+from cvpr2015.utils import fsmooth, build_parts_image, build_reference_frame
 
 
 # Abstract Interface for AAM Builders -----------------------------------------
