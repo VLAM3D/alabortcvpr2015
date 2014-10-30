@@ -463,4 +463,4 @@ class CLMBuilder(object):
 
         return parts_images
 
-from fg2015.deformablemodel.clm import CLM
+from cvpr2015.deformablemodel.clm import CLM

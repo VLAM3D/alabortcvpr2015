@@ -1,7 +1,6 @@
 import numpy as np
 
-from menpo.transform import AlignmentSimilarity
-
+from menpofit.transform import DifferentiableAlignmentSimilarity
 from menpofit.transform import DP
 from menpofit.modelinstance import ModelInstance, similarity_2d_instance_model
 
@@ -47,8 +46,8 @@ class PDM(ModelInstance, DP):
         jacobian : (n_features, n_components, n_dims) ndarray
             The Jacobian of the model in the standard Jacobian shape.
         """
-        d_dp = self.model.d_dp.T.reshape(self.model.n_active_components,
-                                         -1, self.n_dims)
+        d_dp = self.model.components.reshape(self.model.n_active_components,
+                                             -1, self.n_dims)
         return d_dp.swapaxes(0, 1)
 
 
@@ -58,7 +57,8 @@ class GlobalPDM(PDM):
     def __init__(self, model, global_transform_cls, sigma2=1):
         # Start the global_transform as an identity (first call to
         # from_vector_inplace() or set_target() will update this)
-        self.global_transform = global_transform_cls(model.mean, model.mean)
+        self.global_transform = global_transform_cls(model.mean(),
+                                                     model.mean())
         super(GlobalPDM, self).__init__(model, sigma2)
 
     def _set_prior(self, sigma2):
@@ -164,7 +164,7 @@ class GlobalPDM(PDM):
 
     def d_dp(self, points):
         # d_dp is always evaluated at the mean shape
-        points = self.model.mean.points
+        points = self.model.mean().points
 
         # compute dX/dp
 
@@ -195,12 +195,15 @@ class OrthoPDM(GlobalPDM):
     """
     def __init__(self, model, sigma2=1):
         # 1. Construct similarity model from the mean of the model
-        self.similarity_model = similarity_2d_instance_model(model.mean)
+        self.similarity_model = similarity_2d_instance_model(model.mean())
         # 2. Orthonormalize model and similarity model
         model_cpy = model.copy()
         model_cpy.orthonormalize_against_inplace(self.similarity_model)
-        self.similarity_weights = self.similarity_model.project(model_cpy.mean)
-        super(OrthoPDM, self).__init__(model_cpy, AlignmentSimilarity, sigma2)
+        self.similarity_weights = self.similarity_model.project(
+            model_cpy.mean())
+        super(OrthoPDM, self).__init__(model_cpy,
+                                       DifferentiableAlignmentSimilarity,
+                                       sigma2)
 
     @property
     def global_parameters(self):
@@ -221,5 +224,5 @@ class OrthoPDM(GlobalPDM):
         self.global_transform.set_target(new_target)
 
     def _global_transform_d_dp(self, points):
-        return self.similarity_model.d_dp.T.reshape(
+        return self.similarity_model.components.reshape(
             self.n_global_parameters, -1, self.n_dims).swapaxes(0, 1)

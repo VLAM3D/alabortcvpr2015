@@ -19,7 +19,7 @@ class AAMAlgorithm(object):
 
         # set common state for all AAM algorithms
         self.appearance_model = appearance_model
-        self.template = appearance_model.mean
+        self.template = appearance_model.mean()
         self.transform = transform
         self.eps = eps
 
@@ -76,7 +76,7 @@ class PIC(AAMAlgorithm):
         self.transform.set_target(initial_shape)
         shape_parameters = [self.transform.as_vector()]
         # masked model mean
-        masked_m = self.appearance_model.mean.as_vector()[
+        masked_m = self.appearance_model.mean().as_vector()[
             self.interface.image_vec_mask]
 
         for _ in xrange(max_iters):
@@ -128,7 +128,7 @@ class AIC(AAMAlgorithm):
         # initial appearance parameters
         appearance_parameters = [0]
         # model mean
-        m = self.appearance_model.mean.as_vector()
+        m = self.appearance_model.mean().as_vector()
         # masked model mean
         masked_m = m[self.interface.image_vec_mask]
 

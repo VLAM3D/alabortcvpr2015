@@ -48,7 +48,7 @@ class GlobalAAMFitter(AAMFitter):
             md_transform = OrthoMDTransform(
                 sm, self.dm.transform,
                 source=am.mean.landmarks['source'].lms,
-                sigma2=am.noise_variance)
+                sigma2=am.noise_variance())
 
             algorithm = algorithm_cls(GlobalAAMInterface, am,
                                       md_transform, **kwargs)
@@ -71,7 +71,7 @@ class PartsAAMFitter(AAMFitter):
         for j, (am, sm) in enumerate(zip(self.dm.appearance_models,
                                          self.dm.shape_models)):
 
-            pdm = OrthoPDM(sm, sigma2=am.noise_variance)
+            pdm = OrthoPDM(sm, sigma2=am.noise_variance())
 
             algorithm = algorithm_cls(PartsAAMInterface, am, pdm, **kwargs)
             algorithm.parts_shape = self.dm.parts_shape

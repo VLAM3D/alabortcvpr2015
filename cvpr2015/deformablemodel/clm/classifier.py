@@ -1,6 +1,6 @@
 import numpy as np
+from numpy.fft import fft2, ifft2
 from scipy.signal import cosine
-from pyfftw.interfaces.numpy_fft import fft2, ifft2
 from sklearn import svm
 from sklearn import linear_model
 

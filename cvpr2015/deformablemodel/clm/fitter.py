@@ -21,7 +21,7 @@ class CLMFitter(Fitter):
         for j, (clf, sm) in enumerate(zip(self.dm.classifiers,
                                           self.dm.shape_models)):
 
-            pdm = OrthoPDM(sm, sigma2=sm.noise_variance)
+            pdm = OrthoPDM(sm, sigma2=sm.noise_variance())
 
             algorithm = algorithm_cls(clf, self.dm.parts_shape,
                                       self.dm.normalize_parts,

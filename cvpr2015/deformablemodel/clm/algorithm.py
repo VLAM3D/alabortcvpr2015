@@ -55,13 +55,13 @@ class RLMS(CLMAlgorithm):
 
         # compute Gaussian-KDE grid
         mean = np.zeros(self.transform.n_dims)
-        #covariance = self.scale * self.transform.model.noise_variance
-        covariance = self._scale * self.transform.model.noise_variance
+        covariance = self._scale * self.transform.model.noise_variance()
         mvn = multivariate_normal(mean=mean, cov=covariance)
         self._kernel_grid = mvn.pdf(self._sampling_grid)
 
         # compute Jacobian
         self._j = np.rollaxis(self.transform.d_dp(None), -1)
+        print self._j.shape
         #self._j = j.reshape((-1, j.shape[-1]))
 
         # compute Hessian
@@ -105,10 +105,8 @@ class RLMS(CLMAlgorithm):
             parts_pixels = parts_image.pixels
             parts_response = np.zeros((n_clfs,) + self.parts_shape)
             for j, clf in enumerate(self.classifiers):
-                part_pixels = np.reshape(parts_pixels[:, j, 0, ...],
-                                         (n_channels, -1)).T
-                parts_response[j, :, :] = np.reshape(
-                    clf(part_pixels), self.parts_shape)
+                part_pixels = parts_pixels[:, j, 0, ...],
+                parts_response[j, :, :] = np.sum(clf(part_pixels)[0], axis=0)
 
             # compute parts kernel
             parts_kernel = parts_response * self._kernel_grid

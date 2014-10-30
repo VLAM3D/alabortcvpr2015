@@ -285,6 +285,6 @@ class PartsAAMBuilder(AAMBuilder):
                         self.scale_shapes, self.scale_features)
 
 
-from fg2015.deformablemodel.aam import GlobalAAM, PartsAAM
+from cvpr2015.deformablemodel.aam import GlobalAAM, PartsAAM
 
 
