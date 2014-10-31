@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 from numpy.fft import fft2, ifft2
 from scipy.signal import cosine
@@ -67,22 +68,33 @@ class MultipleMCF(object):
     r"""
     Multiple of Multi-channel Correlation Filter
     """
-    def __init__(self, mcfs):
+    def __init__(self, clfs):
 
-        self._cosine_mask = mcfs[0]._cosine_mask
+        self._cosine_mask = clfs[0]._cosine_mask
+
         # concatenate all filters
-        n_channels, height, width = mcfs[0].f.shape
-        n_landmarks = len(mcfs)
+        n_channels, height, width = clfs[0].f.shape
+        n_landmarks = len(clfs)
         self.F = np.zeros((n_channels, n_landmarks, height, width),
-                           dtype=np.complex64)
-        for j, clf in enumerate(mcfs):
+                          dtype=np.complex64)
+        for j, clf in enumerate(clfs):
             self.F[:, j, ...] = clf.f
 
     def __call__(self, parts_image):
 
-        return np.sum(np.real(ifft2(
+        # compute responses
+        parts_response = np.sum(np.real(ifft2(
             self.F * fft2(self._cosine_mask *
-                           parts_image.pixels[:, :, 0, ...]))), axis=0)
+                          parts_image.pixels[:, :, 0, ...]))), axis=0)
+
+        # normalize
+        min_parts_response = np.min(parts_response,
+                                    axis=(-2, -1))[..., None, None]
+        parts_response -= min_parts_response
+        parts_response /= np.max(parts_response,
+                                 axis=(-2, -1))[..., None, None]
+
+        return parts_response
 
 
 class LinearSVMLR(object):
@@ -91,6 +103,8 @@ class LinearSVMLR(object):
     Logistic Regression.
     """
     def __init__(self, samples, mask, threshold=0.05):
+
+        mask = mask[0]
 
         n_samples = len(samples)
         n_channels, n_offsets, height, width = samples[0].shape
@@ -124,3 +138,34 @@ class LinearSVMLR(object):
     def __call__(self, x):
         t1_pred = self.clf1.decision_function(x)
         return self.clf2.predict_proba(t1_pred[..., None])[:, 1]
+
+
+class MultipleLinearSVMLR(object):
+    r"""
+    Multiple Binary classifier that combines Linear Support Vector Machines
+    and Logistic Regression.
+    """
+    def __init__(self, clfs):
+
+        self.classifiers = clfs
+        self.n_clfs = len(clfs)
+
+    def __call__(self, parts_image):
+
+        h, w = parts_image.shape[-2:]
+        parts_pixels = parts_image.pixels
+
+        parts_response = np.zeros((self.n_clfs, h, w))
+        for j, clf in enumerate(self.classifiers):
+            i = parts_pixels[:, j, 0, ...].reshape((parts_image.n_channels,
+                                                    -1))
+            parts_response[j, ...] = clf(i.T).reshape((h, w))
+
+        # normalize
+        min_parts_response = np.min(parts_response,
+                                    axis=(-2, -1))[..., None, None]
+        parts_response -= min_parts_response
+        parts_response /= np.max(parts_response,
+                                 axis=(-2, -1))[..., None, None]
+
+        return parts_response

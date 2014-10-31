@@ -10,7 +10,7 @@ from menpo.visualize import print_dynamic, progress_bar_str
 
 from cvpr2015.utils import fsmooth, build_parts_image, build_sampling_grid
 
-from .classifier import MCF, MultipleMCF, LinearSVMLR
+from .classifier import MCF, MultipleMCF, LinearSVMLR, MultipleLinearSVMLR
 
 
 # Concrete Implementation for CLM Builders ------------------------------------
@@ -340,8 +340,14 @@ class CLMBuilder(object):
                 clf = self.classifier(X, Y, **kwargs)
                 level_classifiers.append(clf)
 
+            # build Multiple classifier
+            if self.classifier is MCF:
+                multiple_clf = MultipleMCF(level_classifiers)
+            elif self.classifier is LinearSVMLR:
+                multiple_clf = MultipleLinearSVMLR(level_classifiers)
+
             # add appearance model to the list
-            classifiers.append(level_classifiers)
+            classifiers.append(multiple_clf)
 
             if verbose:
                 print_dynamic('{}Done\n'.format(level_str))
