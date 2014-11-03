@@ -11,7 +11,9 @@ from menpo.visualize import print_dynamic, progress_bar_str
 
 from menpofast.utils import build_parts_image
 
-from alabortcvpr2015.utils import fsmooth, build_reference_frame
+from menpofit.aam.builder import build_reference_frame
+
+from alabortcvpr2015.utils import fsmooth
 
 
 # Abstract Interface for AAM Builders -----------------------------------------
@@ -287,6 +289,6 @@ class PartsAAMBuilder(AAMBuilder):
                         self.scale_shapes, self.scale_features)
 
 
-from cvpr2015.deformablemodel.aam import GlobalAAM, PartsAAM
+from .base import GlobalAAM, PartsAAM
 
 

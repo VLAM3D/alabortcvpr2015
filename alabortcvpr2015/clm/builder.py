@@ -11,7 +11,9 @@ from menpo.visualize import print_dynamic, progress_bar_str
 
 from menpofast.utils import build_parts_image
 
-from alabortcvpr2015.utils import fsmooth, build_sampling_grid
+from menpofit.base import build_sampling_grid
+
+from alabortcvpr2015.utils import fsmooth
 
 from .classifier import MCF, MultipleMCF, LinearSVMLR, MultipleLinearSVMLR
 

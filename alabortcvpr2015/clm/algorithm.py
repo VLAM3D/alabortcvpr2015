@@ -5,7 +5,8 @@ import numpy as np
 
 from menpofast.utils import build_parts_image
 
-from alabortcvpr2015.utils import build_sampling_grid
+from menpofit.base import build_sampling_grid
+
 from alabortcvpr2015.clm.result import CLMAlgorithmResult
 
 
