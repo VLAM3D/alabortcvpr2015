@@ -316,20 +316,20 @@ class PartsAAMInterface(AAMInterface):
 
     def steepest_descent_images(self, gradient, dw_dp):
         # reshape gradient
-        # gradient: n_dims x n_channels x n_parts x offsets x (h x w)
+        # gradient: n_dims x n_parts x offsets x n_ch x (h x w)
         gradient = gradient[self.gradient_mask].reshape(
             gradient.shape[:-2] + (-1,))
         # compute steepest descent images
-        # gradient: n_dims x n_ch x n_parts x offsets x (h x w)
-        # dw_dp:    n_dims x      x n_parts x                   x n_params
-        # sdi:               n_ch x n_parts x offsets x (h x w) x n_params
+        # gradient: n_dims x n_parts x offsets x n_ch x (h x w)
+        # ds_dp:    n_dims x n_parts x                          x n_params
+        # sdi:               n_parts x offsets x n_ch x (h x w) x n_params
         sdi = 0
-        a = gradient[..., None] * dw_dp[..., None, :, None, None, :]
+        a = gradient[..., None] * dw_dp[..., None, None, None, :]
         for d in a:
             sdi += d
 
         # reshape steepest descent images
-        # sdi: (n_channels x n_parts x w x h) x n_params
+        # sdi: (n_parts x n_offsets x n_ch x w x h) x n_params
         return sdi.reshape((-1, sdi.shape[-1]))
 
     def solve(self, h, j, e, prior):

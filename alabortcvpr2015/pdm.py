@@ -1,7 +1,7 @@
 import numpy as np
 
 from menpofit.transform import DifferentiableAlignmentSimilarity
-from menpofit.transform import DP
+from menpofit.differentiable import DP
 from menpofit.modelinstance import ModelInstance, similarity_2d_instance_model
 
 

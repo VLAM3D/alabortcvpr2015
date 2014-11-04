@@ -3,7 +3,7 @@ import numpy as np
 from menpo.base import Targetable, Vectorizable
 from menpo.transform import Transform
 
-from menpofit.transform import DP
+from menpofit.differentiable import DP
 
 from .pdm import PDM, GlobalPDM, OrthoPDM
 
