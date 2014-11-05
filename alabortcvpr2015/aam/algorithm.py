@@ -216,7 +216,7 @@ class GlobalAAMInterface(AAMInterface):
     def __init__(self, aam_algorithm, sampling_step=None):
         super(GlobalAAMInterface, self). __init__(aam_algorithm)
 
-        n_true_pixels = self.algorithm.template.n_true_pixels
+        n_true_pixels = self.algorithm.template.n_true_pixels()
         n_channels = self.algorithm.template.n_channels
         n_parameters = self.algorithm.transform.n_parameters
         sampling_mask = np.require(np.zeros(n_true_pixels), dtype=np.bool)
@@ -237,7 +237,7 @@ class GlobalAAMInterface(AAMInterface):
 
     def dw_dp(self):
         dw_dp = np.rollaxis(self.algorithm.transform.d_dp(
-            self.algorithm.template.mask.true_indices), -1)
+            self.algorithm.template.mask.true_indices()), -1)
         return dw_dp[self.dw_dp_mask].reshape((dw_dp.shape[0], -1,
                                                dw_dp.shape[2]))
 

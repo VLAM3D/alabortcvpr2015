@@ -12,10 +12,10 @@ class MCF(object):
     """
     def __init__(self, X, Y, l=0, cosine_mask=False):
 
-        if X[0].shape[1:] != (len(Y),) + Y[0].shape:
+        if (X[0].shape[0],) + X[0].shape[-2:] != (len(Y),) + Y[0].shape:
             raise ValueError('')
 
-        n_channels, n_offsets, height, width = X[0].shape
+        n_offsets, n_channels, height, width = X[0].shape
 
         self._cosine_mask = 1
         if cosine_mask:
@@ -46,8 +46,8 @@ class MCF(object):
         for i in xrange(n_channels):
             for x_hat in X_hat:
                 for o, y_hat in enumerate(Y_hat):
-                    sxx_hat = sxx_hat + x_hat[i, o] * np.conj(x_hat[i, o])
-                    syx_hat = syx_hat + y_hat * np.conj(x_hat[i, o])
+                    sxx_hat = sxx_hat + x_hat[o, i] * np.conj(x_hat[o, i])
+                    syx_hat = syx_hat + y_hat * np.conj(x_hat[o, i])
             sxx_hat += l * np.eye(sxx_hat.shape[1])
             self.f[i] = syx_hat / (sxx_hat + l * np.eye(sxx_hat.shape[1]))
 
@@ -61,7 +61,8 @@ class MCF(object):
 
     def __call__(self, x):
         return np.real(
-            ifft2(self.f * fft2(self._cosine_mask * x)))
+            ifft2(self.f * np.require(fft2(self._cosine_mask * x),
+                                      dtype=np.complex64)))
 
 
 class MultipleMCF(object):
@@ -75,17 +76,18 @@ class MultipleMCF(object):
         # concatenate all filters
         n_channels, height, width = clfs[0].f.shape
         n_landmarks = len(clfs)
-        self.F = np.zeros((n_channels, n_landmarks, height, width),
+        self.F = np.zeros((n_landmarks, n_channels, height, width),
                           dtype=np.complex64)
         for j, clf in enumerate(clfs):
-            self.F[:, j, ...] = clf.f
+            self.F[j, ...] = clf.f
 
     def __call__(self, parts_image):
 
         # compute responses
         parts_response = np.sum(np.real(ifft2(
-            self.F * fft2(self._cosine_mask *
-                          parts_image.pixels[:, :, 0, ...]))), axis=0)
+            self.F * np.require(fft2(self._cosine_mask *
+                                     parts_image.pixels[:, 0, :, ...]),
+                                dtype=np.complex64))), axis=-3)
 
         # normalize
         min_parts_response = np.min(parts_response,
@@ -102,12 +104,12 @@ class LinearSVMLR(object):
     Binary classifier that combines Linear Support Vector Machines and
     Logistic Regression.
     """
-    def __init__(self, samples, mask, threshold=0.05):
+    def __init__(self, samples, mask, threshold=0.05, **kwarg):
 
         mask = mask[0]
 
         n_samples = len(samples)
-        n_channels, n_offsets, height, width = samples[0].shape
+        n_offsets, n_channels, height, width = samples[0].shape
 
         true_mask = mask >= threshold
         false_mask = mask < threshold
@@ -122,14 +124,14 @@ class LinearSVMLR(object):
         neg_samples = np.zeros((n_channels, n_false * n_samples))
         for j, x in enumerate(samples):
             pos_index = j*n_true
-            pos_samples[:, pos_index:pos_index+n_true] = x[:, 0, true_mask]
+            pos_samples[:, pos_index:pos_index+n_true] = x[0, :, true_mask].T
             neg_index = j*n_false
-            neg_samples[:, neg_index:neg_index+n_false] = x[:, 0, false_mask]
+            neg_samples[:, neg_index:neg_index+n_false] = x[0, :, false_mask].T
 
         X = np.vstack((pos_samples.T, neg_samples.T))
         t = np.hstack((pos_labels, neg_labels))
 
-        self.clf1 = svm.LinearSVC(class_weight='auto')
+        self.clf1 = svm.LinearSVC(class_weight='auto', **kwarg)
         self.clf1.fit(X, t)
         t1 = self.clf1.decision_function(X)
         self.clf2 = linear_model.LogisticRegression(class_weight='auto')
@@ -157,8 +159,7 @@ class MultipleLinearSVMLR(object):
 
         parts_response = np.zeros((self.n_clfs, h, w))
         for j, clf in enumerate(self.classifiers):
-            i = parts_pixels[:, j, 0, ...].reshape((parts_image.n_channels,
-                                                    -1))
+            i = parts_pixels[j, ...].reshape((parts_image.shape[-3], -1))
             parts_response[j, ...] = clf(i.T).reshape((h, w))
 
         # normalize

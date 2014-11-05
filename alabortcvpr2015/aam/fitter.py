@@ -47,7 +47,7 @@ class GlobalAAMFitter(AAMFitter):
 
             md_transform = OrthoMDTransform(
                 sm, self.dm.transform,
-                source=am.mean.landmarks['source'].lms,
+                source=am.mean().landmarks['source'].lms,
                 sigma2=am.noise_variance())
 
             algorithm = algorithm_cls(GlobalAAMInterface, am,

@@ -21,16 +21,16 @@ class CLM(object):
         self.scale_features = scale_features
 
     def __getstate__(self):
-        import menpo.feature as menpo_feature
+        import menpofast.feature as menpofast_feature
         d = self.__dict__.copy()
 
         features = d.pop('features')
         if self.pyramid_on_features:
             # features is a single callable
-            d['features'] = SerializableCallable(features, [menpo_feature])
+            d['features'] = SerializableCallable(features, [menpofast_feature])
         else:
             # features is a list of callables
-            d['features'] = [SerializableCallable(f, [menpo_feature])
+            d['features'] = [SerializableCallable(f, [menpofast_feature])
                              for f in features]
         return d
 

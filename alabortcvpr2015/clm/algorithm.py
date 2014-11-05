@@ -79,9 +79,6 @@ class RLMS(CLMAlgorithm):
         self.transform.set_target(initial_shape)
         shape_parameters = [self.transform.as_vector()]
 
-        # n_clfs = len(self.classifiers)
-        # n_channels = image.n_channels
-
         for _ in xrange(max_iters):
 
             target = self.transform.target

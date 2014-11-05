@@ -4,13 +4,13 @@ from copy import deepcopy
 import numpy as np
 
 from menpo.transform import Scale, Translation, GeneralizedProcrustesAnalysis
-from menpo.transform.piecewiseaffine import PiecewiseAffine
 from menpo.model import PCAModel
 from menpo.shape import mean_pointcloud
 from menpo.visualize import print_dynamic, progress_bar_str
 
-from menpofast.utils import build_parts_image
+from menpofast.utils import build_parts_image, convert_from_menpo
 
+from menpofit.transform.piecewiseaffine import DifferentiablePiecewiseAffine
 from menpofit.aam.builder import build_reference_frame
 
 from alabortcvpr2015.utils import fsmooth
@@ -77,7 +77,7 @@ class AAMBuilder(object):
 
             # obtain warped images
             warped_images = self._warp_images(level_images, level_shapes,
-                                              shape_model.mean, level_str,
+                                              shape_model.mean(), level_str,
                                               verbose)
 
             # obtain appearance model
@@ -200,7 +200,7 @@ class AAMBuilder(object):
 
 class GlobalAAMBuilder(AAMBuilder):
 
-    def __init__(self, features=None, transform=PiecewiseAffine,
+    def __init__(self, features=None, transform=DifferentiablePiecewiseAffine,
                  trilist=None, diagonal=None, sigma=None, scales=(1, .5),
                  scale_shapes=True, scale_features=True,
                  max_shape_components=None, max_appearance_components=None,
@@ -219,8 +219,9 @@ class GlobalAAMBuilder(AAMBuilder):
         self.boundary = boundary
 
     def _build_reference_frame(self, mean_shape):
-        return build_reference_frame(mean_shape, boundary=self.boundary,
-                                     trilist=self.trilist)
+        return convert_from_menpo(
+            build_reference_frame(mean_shape, boundary=self.boundary,
+                                  trilist=self.trilist))
 
     def _warp_images(self, images, shapes, ref_shape, level_str, verbose):
         # compute transforms

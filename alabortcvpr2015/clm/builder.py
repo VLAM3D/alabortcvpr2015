@@ -1,6 +1,5 @@
 from __future__ import division
 from copy import deepcopy
-
 import numpy as np
 from scipy.stats import multivariate_normal
 
@@ -113,7 +112,7 @@ class CLMBuilder(object):
                         progress_bar_str((l + 1.) / n_landmarks,
                                          show_bar=False)))
 
-                X = [i.pixels[:, l, ...] for i in parts_images]
+                X = [i.pixels[l] for i in parts_images]
 
                 clf = self.classifier(X, Y, **kwargs)
                 level_classifiers.append(clf)
