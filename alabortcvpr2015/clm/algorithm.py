@@ -20,14 +20,15 @@ class CLMAlgorithm(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, multiple_clf, parts_shape, normalize_parts,
-                 pdm,  eps=10**-5, scale=10):
+                 pdm, scale=10, factor=100, eps=10**-5):
 
         self.multiple_clf = multiple_clf
         self.parts_shape = parts_shape
         self.normalize_parts = normalize_parts
         self.transform = pdm
         self.eps = eps
-        self._scale = scale
+        self.scale = scale
+        self.factor = factor
 
         # pre-compute
         self._precompute()
@@ -56,21 +57,36 @@ class RLMS(CLMAlgorithm):
 
         # build sampling grid associated to patch shape
         self._sampling_grid = build_sampling_grid(self.parts_shape)
+        up_sampled_shape = self.factor * (np.asarray(self.parts_shape) + 1)
+        self._up_sampled_grid = build_sampling_grid(up_sampled_shape)
+        self.offset = np.mgrid[self.factor:up_sampled_shape[0]:self.factor,
+                               self.factor:up_sampled_shape[1]:self.factor]
+        self.offset = self.offset.swapaxes(0, 2).swapaxes(0, 1)
+
+        # set rho2
+        self._rho2 = self.transform.model.noise_variance()
 
         # compute Gaussian-KDE grid
         mean = np.zeros(self.transform.n_dims)
-        covariance = self._scale * self.transform.model.noise_variance()
+        covariance = self.scale * self._rho2
         mvn = multivariate_normal(mean=mean, cov=covariance)
-        self._kernel_grid = mvn.pdf(self._sampling_grid)
+        self._kernel_grid = mvn.pdf(self._up_sampled_grid)
+        n_parts = self.transform.model.mean().n_points
+        self._kernel_grids = np.empty((n_parts,) + self.parts_shape)
 
         # compute Jacobian
         j = np.rollaxis(self.transform.d_dp(None), -1, 1)
         self._j = j.reshape((-1, j.shape[-1]))
 
+        # set Prior
+        sim_prior = np.zeros((4,))
+        pdm_prior = self._rho2 / self.transform.model.eigenvalues
+        self._j_prior = np.hstack((sim_prior, pdm_prior))
+
         # compute Hessian inverse
         self._h = self._j.T.dot(self._j)
         self._inv_h = np.linalg.inv(self._h)
-        self._inv_h_prior = np.linalg.inv(self.transform.h_prior + self._h)
+        self._inv_h_prior = np.linalg.inv(self._h + np.diag(self._j_prior))
 
     def run(self, image, initial_shape, gt_shape=None, max_iters=20,
             prior=False):
@@ -82,11 +98,19 @@ class RLMS(CLMAlgorithm):
         for _ in xrange(max_iters):
 
             target = self.transform.target
-            rounded_target = target.copy()
-            rounded_target.points = np.round(target.points)
             # get all (x, y) pairs being considered
-            xys = (rounded_target.points[:, None, None, ...] +
+            xys = (target.points[:, None, None, ...] +
                    self._sampling_grid)
+
+            diff = np.require(
+                np.round(-np.round(target.points) + target.points,
+                         decimals=np.int(self.factor/10)) *
+                self.factor, dtype=int)
+
+            offsets = diff[:, None, None, :] + self.offset
+            for j, o in enumerate(offsets):
+                self._kernel_grids[j, ...] = self._kernel_grid[o[..., 0],
+                                                               o[..., 1]]
 
             # build parts image
             parts_image = build_parts_image(
@@ -97,7 +121,7 @@ class RLMS(CLMAlgorithm):
             parts_response = self.multiple_clf(parts_image)
 
             # compute parts kernel
-            parts_kernel = parts_response * self._kernel_grid
+            parts_kernel = parts_response * self._kernel_grids
             parts_kernel /= np.sum(
                 parts_kernel, axis=(-2, -1))[..., None, None]
 
@@ -110,8 +134,8 @@ class RLMS(CLMAlgorithm):
 
             # compute gauss-newton parameter updates
             if prior:
-                dp = self._inv_h_prior.dot(
-                    self.transform.j_prior * self.transform.as_vector() +
+                dp = -self._inv_h_prior.dot(
+                    self._j_prior * self.transform.as_vector() -
                     self._j.T.dot(e))
             else:
                 dp = self._inv_h.dot(self._j.T.dot(e))
