@@ -25,31 +25,19 @@ class MCF(object):
         X_hat = self._compute_fft2s(X)
         Y_hat = self._compute_fft2s(Y)
 
-        # self.f = np.zeros((n_channels, height, width), dtype=np.complex64)
-        # for i in xrange(n_channels):
-        #     for j in xrange(height):
-        #         for k in xrange(width):
-        #             H_hat = 0
-        #             J_hat = 0
-        #             for x_hat in X_hat:
-        #                 for o, y_hat in enumerate(Y_hat):
-        #                     H_hat += (np.conj(x_hat[i, o, j, k]) *
-        #                               x_hat[i, o, j, k])
-        #                     J_hat += (np.conj(x_hat[i, o, j, k]) *
-        #                               y_hat[j, k])
-        #             H_hat += l
-        #             self.f[i, j, k] = J_hat / H_hat
-
         self.f = np.zeros((n_channels, height, width), dtype=np.complex64)
-        sxx_hat = 0
-        syx_hat = 0
-        for i in xrange(n_channels):
-            for x_hat in X_hat:
-                for o, y_hat in enumerate(Y_hat):
-                    sxx_hat = sxx_hat + x_hat[o, i] * np.conj(x_hat[o, i])
-                    syx_hat = syx_hat + y_hat * np.conj(x_hat[o, i])
-            sxx_hat += l * np.eye(sxx_hat.shape[1])
-            self.f[i] = syx_hat / (sxx_hat + l * np.eye(sxx_hat.shape[1]))
+        for j in xrange(height):
+            for k in xrange(width):
+                H_hat = np.zeros((n_channels, n_channels), dtype=np.complex64)
+                J_hat = np.zeros((n_channels,), dtype=np.complex64)
+                for x_hat in X_hat:
+                    for o, y_hat in enumerate(Y_hat):
+                        x_hat_ij = x_hat[o, :, j, k][:]
+                        H_hat += np.conj(x_hat_ij[..., None]).dot(
+                            x_hat_ij[None, ...])
+                        J_hat += np.conj(x_hat_ij) * y_hat[j, k]
+                H_hat += l * np.eye(H_hat.shape[0])
+                self.f[..., j, k] = np.linalg.solve(H_hat, J_hat)
 
     def _compute_fft2s(self, X):
         X_hat = []
