@@ -7,6 +7,7 @@ from menpo.transform import Scale
 from menpofit.fittingresult import compute_error
 
 from menpofast.image import Image
+from menpofast.utils import convert_from_menpo
 
 
 # Abstract Interface for Results ----------------------------------------------
@@ -333,7 +334,7 @@ class SerializableResult(Result):
     def image(self):
         if self._image is None:
             image = mio.import_image(self._image_path)
-            image = Image.from_menpo_image(image)
+            image = convert_from_menpo(image)
             image.crop_to_landmarks_proportion_inplace(0.5)
             self._image = image
 
