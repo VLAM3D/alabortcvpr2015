@@ -137,7 +137,7 @@ class CLMBuilder(object):
 
         clm = CLM(shape_models, classifiers, reference_shape,
                   self.parts_shape, self.features, self.normalize_parts,
-                  self.sigma, self.scales, self.scale_shapes,
+                  self.covariance, self.sigma, self.scales, self.scale_shapes,
                   self.scale_features)
 
         return clm
@@ -174,9 +174,10 @@ class CLMBuilder(object):
         for c, i in enumerate(images):
             if verbose:
                 print_dynamic(
-                    '- Computing feature space: {}'.format(
-                        level_str, progress_bar_str((c + 1.) / len(images),
-                                                    show_bar=False)))
+                    '{}Computing feature space: {}'.format(
+                        level_str,
+                        progress_bar_str((c + 1.) / len(images),
+                                         show_bar=False)))
             if self.features:
                 i = self.features(i)
             feature_images.append(i)
@@ -189,9 +190,10 @@ class CLMBuilder(object):
         for c, i in enumerate(images):
             if verbose:
                 print_dynamic(
-                    '- Scaling features: {}'.format(
-                        level_str, progress_bar_str((c + 1.) / len(images),
-                                                    show_bar=False)))
+                    '{}Scaling features: {}'.format(
+                        level_str,
+                        progress_bar_str((c + 1.) / len(images),
+                                         show_bar=False)))
             scaled_images.append(i.rescale(s))
         return scaled_images
 

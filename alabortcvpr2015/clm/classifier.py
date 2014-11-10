@@ -1,6 +1,6 @@
 from __future__ import division
 import numpy as np
-from numpy.fft import fft2, ifft2
+from numpy.fft import fft2, ifft2, fftshift
 from scipy.signal import cosine
 from sklearn import svm
 from sklearn import linear_model
@@ -39,6 +39,11 @@ class MCF(object):
                 H_hat += l * np.eye(H_hat.shape[0])
                 self.f[..., j, k] = np.linalg.solve(H_hat, J_hat)
 
+    def __call__(self, x):
+        return np.real(
+            ifft2(self.f * np.require(fft2(self._cosine_mask * x),
+                                      dtype=np.complex64)))
+
     def _compute_fft2s(self, X):
         X_hat = []
         for x in X:
@@ -46,11 +51,6 @@ class MCF(object):
                                dtype=np.complex64)
             X_hat.append(x_hat)
         return X_hat
-
-    def __call__(self, x):
-        return np.real(
-            ifft2(self.f * np.require(fft2(self._cosine_mask * x),
-                                      dtype=np.complex64)))
 
 
 class MultipleMCF(object):
@@ -85,6 +85,9 @@ class MultipleMCF(object):
                                  axis=(-2, -1))[..., None, None]
 
         return parts_response
+
+    def invert_filters(self):
+        return np.real(fftshift(ifft2(self.F), axes=(-2, -1)))
 
 
 class LinearSVMLR(object):

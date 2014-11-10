@@ -25,6 +25,10 @@ class CLMFitter(Fitter):
 
             algorithm = algorithm_cls(clf, self.dm.parts_shape,
                                       self.dm.normalize_parts,
-                                      pdm, **kwargs)
+                                      self.covariance, pdm, **kwargs)
 
             self._algorithms.append(algorithm)
+
+    @property
+    def covariance(self):
+        return self.dm.covariance
