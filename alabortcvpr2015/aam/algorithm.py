@@ -82,7 +82,7 @@ class PIC(AAMAlgorithm):
 
         for _ in xrange(max_iters):
 
-            # compute warped image with current weights
+            # warp image
             i = self.interface.warp(image)
 
             # reconstruct appearance
@@ -105,7 +105,7 @@ class PIC(AAMAlgorithm):
             if error < self.eps:
                 break
 
-        # return dm algorithm result
+        # return algorithm result
         return AAMAlgorithmResult(image, self, shape_parameters,
                                   gt_shape=gt_shape)
 
@@ -173,7 +173,7 @@ class AIC(AAMAlgorithm):
             if error < self.eps:
                 break
 
-        # return fg2015 algorithm result
+        # return algorithm result
         return AAMAlgorithmResult(image, self, shape_parameters,
                                   appearance_parameters=appearance_parameters,
                                   gt_shape=gt_shape)
@@ -311,7 +311,7 @@ class PartsAAMInterface(AAMInterface):
 
     def gradient(self, image):
         g = fast_gradient(image.pixels.reshape(
-            (-1,) + self.algorithm.parts_shape))
+            (-1,) + self.algorithm.appearance_model.mean().shape[-2:]))
         return g.reshape((2,) + image.pixels.shape)
 
     def steepest_descent_images(self, gradient, dw_dp):

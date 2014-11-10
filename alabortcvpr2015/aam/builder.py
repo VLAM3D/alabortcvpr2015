@@ -136,7 +136,7 @@ class AAMBuilder(object):
         for c, i in enumerate(images):
             if verbose:
                 print_dynamic(
-                    '- Computing feature space: {}'.format(
+                    '{}Computing feature space: {}'.format(
                         level_str, progress_bar_str((c + 1.) / len(images),
                                                     show_bar=False)))
             if self.features:
@@ -151,7 +151,7 @@ class AAMBuilder(object):
         for c, i in enumerate(images):
             if verbose:
                 print_dynamic(
-                    '- Scaling features: {}'.format(
+                    '{}Scaling features: {}'.format(
                         level_str, progress_bar_str((c + 1.) / len(images),
                                                     show_bar=False)))
             scaled_images.append(i.rescale(s))
