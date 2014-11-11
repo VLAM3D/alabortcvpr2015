@@ -37,7 +37,7 @@ class RLMS(CLMAlgorithm):
     """
 
     def __init__(self, multiple_clf, parts_shape, normalize_parts, covariance,
-                 pdm, scale=10, factor=100, eps=10**-5, **kwarg):
+                 pdm, scale=10, factor=1, eps=10**-5, **kwarg):
 
         self.multiple_clf = multiple_clf
         self.parts_shape = parts_shape
@@ -70,7 +70,7 @@ class RLMS(CLMAlgorithm):
 
         # compute Gaussian-KDE grid
         mean = np.zeros(self.transform.n_dims)
-        covariance = self.scale * self._rho2
+        covariance = self.scale + self._rho2
         mvn = multivariate_normal(mean=mean, cov=covariance)
         self._kernel_grid = mvn.pdf(self._up_sampled_grid/self.factor)
         n_parts = self.transform.model.mean().n_points
@@ -105,8 +105,9 @@ class RLMS(CLMAlgorithm):
                    self._sampling_grid)
 
             diff = np.require(
-                np.round((-np.round(target.points) + target.points) *
-                self.factor), dtype=int)
+                np.round((np.round(target.points) - target.points) *
+                         self.factor),
+                dtype=int)
 
             offsets = diff[:, None, None, :] + self.offset
             for j, o in enumerate(offsets):
@@ -120,7 +121,7 @@ class RLMS(CLMAlgorithm):
 
             # compute parts response
             parts_response = self.multiple_clf(parts_image)
-            parts_response[np.logical_not(np.isfinite(parts_response))] = 1
+            parts_response[np.logical_not(np.isfinite(parts_response))] = .5
 
             # compute parts kernel
             parts_kernel = parts_response * self._kernel_grids
@@ -335,11 +336,11 @@ class LKInverse(LK):
 
         inv_F = np.real(ifft2(self.multiple_clf.F))[:, None, ...]
 
-        # compute image gradient
+        # compute filter gradient
         nabla_F = self.gradient(Image(inv_F))
         nabla_F = np.require(fft2(nabla_F), dtype=np.complex64)
 
-        # compute image jacobian
+        # compute filter jacobian
         self.j = self.steepest_descent_images(nabla_F, self._dw_dp)
         h = np.sqrt(np.asarray(self.j.shape[-2]))
         w = h
