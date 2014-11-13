@@ -6,7 +6,7 @@ from alabortcvpr2015.pdm import OrthoPDM
 from .algorithm import RLMS
 
 
-# Concrete Implementations of AAM Fitters -------------------------------------
+# Concrete Implementations of CLM Fitters -------------------------------------
 
 class CLMFitter(Fitter):
 

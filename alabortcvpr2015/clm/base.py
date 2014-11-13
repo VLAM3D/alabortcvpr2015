@@ -8,6 +8,8 @@ from menpofast.utils import build_parts_image
 from .classifier import MultipleMCF
 
 
+# Concrete Implementations of CLM Objects -------------------------------------
+
 class CLM(object):
 
     def __init__(self, shape_models, classifiers, reference_shape,
