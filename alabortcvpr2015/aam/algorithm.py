@@ -61,14 +61,22 @@ class PIC(AAMAlgorithm):
         # compute warp jacobian
         dw_dp = self.interface.dw_dp()
 
+        self._inv_sigma2 = self.appearance_model.inverse_noise_variance()
+
         # compute steepest descent images
         j = self.interface.steepest_descent_images(nabla_t, dw_dp)
 
         # project out appearance model from J
-        self._j_po = j - self._U.dot(self._pinv_U.T.dot(j))
+        self._j_po = self._inv_sigma2 * (j -
+                                         self._U.dot(self._pinv_U.T.dot(j)))
 
         # compute inverse hessian
         self._h = self._j_po.T.dot(j)
+
+        # set Prior
+        sim_prior = np.zeros((4,))
+        pdm_prior = 1 / self.transform.pdm.model.eigenvalues
+        self._j_prior = np.hstack((sim_prior, pdm_prior))
 
     def run(self, image, initial_shape, gt_shape=None, max_iters=20,
             prior=False):
@@ -120,6 +128,14 @@ class AIC(AAMAlgorithm):
         # compute warp jacobian
         self._dw_dp = self.interface.dw_dp()
 
+        # set inverse sigma2
+        self._inv_sigma2 = self.appearance_model.inverse_noise_variance()
+
+        # set Prior
+        sim_prior = np.zeros((4,))
+        pdm_prior = 1 / self.transform.pdm.model.eigenvalues
+        self._j_prior = np.hstack((sim_prior, pdm_prior))
+
     def run(self, image, initial_shape, gt_shape=None, max_iters=20,
             prior=False):
 
@@ -155,12 +171,13 @@ class AIC(AAMAlgorithm):
 
             # compute model jacobian
             j = self.interface.steepest_descent_images(nabla_t, self._dw_dp)
+            ja = self._inv_sigma2 * j
 
             # compute hessian
-            h = j.T.dot(j)
+            h = ja.T.dot(j)
 
             # compute gauss-newton parameter updates
-            dp = self.interface.solve(h, j, e, prior)
+            dp = self.interface.solve(h, ja, e, prior)
 
             # update transform
             target = self.transform.target
@@ -334,10 +351,11 @@ class PartsAAMInterface(AAMInterface):
 
     def solve(self, h, j, e, prior):
         t = self.algorithm.transform
+        j_prior = self.algorithm._j_prior
 
         if prior:
-            dp = -np.linalg.solve(t.h_prior + h,
-                                  t.j_prior * t.as_vector() - j.T.dot(e))
+            dp = -np.linalg.solve(np.diag(j_prior) + h,
+                                  j_prior * t.as_vector() - j.T.dot(e))
         else:
             dp = np.linalg.solve(h, j.T.dot(e))
 
