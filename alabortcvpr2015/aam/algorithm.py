@@ -75,7 +75,7 @@ class PIC(AAMAlgorithm):
 
         # set Prior
         sim_prior = np.zeros((4,))
-        pdm_prior = 1 / self.transform.pdm.model.eigenvalues
+        pdm_prior = 1 / self.interface.eigenvalues
         self._j_prior = np.hstack((sim_prior, pdm_prior))
 
     def run(self, image, initial_shape, gt_shape=None, max_iters=20,
@@ -133,7 +133,7 @@ class AIC(AAMAlgorithm):
 
         # set Prior
         sim_prior = np.zeros((4,))
-        pdm_prior = 1 / self.transform.pdm.model.eigenvalues
+        pdm_prior = 1 / self.interface.eigenvalues
         self._j_prior = np.hstack((sim_prior, pdm_prior))
 
     def run(self, image, initial_shape, gt_shape=None, max_iters=20,
@@ -252,6 +252,8 @@ class GlobalAAMInterface(AAMInterface):
         self.gradient2_mask = np.nonzero(np.tile(
             sampling_mask[None, None, None, ...], (2, 2, n_channels, 1)))
 
+        self.eigenvalues = self.algorithm.transform.pdm.model.eigenvalues
+
     def dw_dp(self):
         dw_dp = np.rollaxis(self.algorithm.transform.d_dp(
             self.algorithm.template.mask.true_indices()), -1)
@@ -316,6 +318,8 @@ class PartsAAMInterface(AAMInterface):
         self.image_vec_mask = np.nonzero(image_mask.flatten())[0]
         self.gradient_mask = np.nonzero(np.tile(
             image_mask[None, ...], (2, 1, 1, 1, 1, 1)))
+
+        self.eigenvalues = self.algorithm.transform.model.eigenvalues
 
     def dw_dp(self):
         return np.rollaxis(self.algorithm.transform.d_dp(None), -1)
