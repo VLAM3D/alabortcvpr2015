@@ -1,7 +1,6 @@
 from __future__ import division
 import numpy as np
 from numpy.fft import fft2, ifft2, fftshift
-from scipy.signal import cosine
 from sklearn import svm
 from sklearn import linear_model
 
@@ -19,11 +18,22 @@ class MCF(object):
 
         self._cosine_mask = 1
         if cosine_mask:
-            self._cosine_mask = np.sum(np.meshgrid(cosine(height),
-                                                   cosine(width)), axis=0)
+            c1 = np.cos(np.linspace(-np.pi/2, np.pi/2, height))
+            c2 = np.cos(np.linspace(-np.pi/2, np.pi/2, width))
+            self._cosine_mask = c1[..., None].dot(c2[None, ...])
 
-        X_hat = self._compute_fft2s(X)
-        Y_hat = self._compute_fft2s(Y)
+
+        X_hat = []
+        for x in X:
+            x_hat = np.require(fft2(self._cosine_mask * x),
+                               dtype=np.complex64)
+            X_hat.append(x_hat)
+
+        Y_hat = []
+        for y in Y:
+            y_hat = np.require(fft2(y),
+                               dtype=np.complex64)
+            Y_hat.append(y_hat)
 
         self.f = np.zeros((n_channels, height, width), dtype=np.complex64)
         for j in xrange(height):
