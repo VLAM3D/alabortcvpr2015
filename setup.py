@@ -3,10 +3,8 @@ import numpy as np
 
 include_dirs = [np.get_include()]
 
-requirements = ['menpo>=0.3.0',
-                'menpofast>=0.0.1',
-                'menpofit>=0.0.1',
-                'scikit-image>=0.10.1']
+requirements = ['menpo>=0.4.4',
+                'menpofit>=0.1.0']
 
 setup(name='alabortcvpr2015',
       version='0.0.1',
