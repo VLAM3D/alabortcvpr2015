@@ -37,7 +37,9 @@ class AAMBuilder(object):
             # obtain image representation
             if j == 0:
                 # compute features at highest level
-                feature_images = compute_features(images, verbose, level_str)
+                feature_images = compute_features(images, self.features,
+                                                  verbose=verbose,
+                                                  level_str=level_str)
                 level_images = feature_images
             elif self.scale_features:
                 # scale features at other levels
@@ -45,9 +47,11 @@ class AAMBuilder(object):
                                             level_str)
             else:
                 # scale images and compute features at other levels
-                scaled_images = scale_images(images, s, verbose, level_str)
-                level_images = compute_features(scaled_images, verbose,
-                                                level_str)
+                scaled_images = scale_images(images, s, verbose=verbose,
+                                             level_str=level_str)
+                level_images = compute_features(scaled_images, self.features,
+                                                verbose=verbose,
+                                                level_str=level_str)
 
             # extract potentially rescaled shapes ath highest level
             level_shapes = [i.landmarks[group][label]
@@ -68,8 +72,9 @@ class AAMBuilder(object):
 
             # obtain warped images
             warped_images = self._warp_images(level_images, level_shapes,
-                                              shape_model.mean(), verbose,
-                                              level_str)
+                                              shape_model.mean(),
+                                              verbose=verbose,
+                                              level_str=level_str)
 
             # obtain appearance model
             if verbose:

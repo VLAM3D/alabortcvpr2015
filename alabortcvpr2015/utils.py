@@ -67,7 +67,7 @@ def warp_images(images, shapes, ref_shape, transform, verbose=None,
 
 
 def extract_patches(images, shapes, parts_shape, verbose=None,
-                level_str=""):
+                    level_str=""):
     # extract parts
     parts_images = []
     for c, (i, s) in enumerate(zip(images, shapes)):
