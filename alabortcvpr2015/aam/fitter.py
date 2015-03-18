@@ -73,8 +73,8 @@ class PartsAAMFitter(AAMFitter):
 
             pdm = OrthoPDM(sm, sigma2=am.noise_variance())
 
+            am.parts_shape = self.dm.parts_shape
+            am.normalize_parts = self.dm.normalize_parts
             algorithm = algorithm_cls(PartsAAMInterface, am, pdm, **kwargs)
-            algorithm.parts_shape = self.dm.parts_shape
-            algorithm.normalize_parts = self.dm.normalize_parts
 
             self._algorithms.append(algorithm)

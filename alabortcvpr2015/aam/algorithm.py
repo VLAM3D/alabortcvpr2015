@@ -3,17 +3,188 @@ import abc
 
 import numpy as np
 
-from menpofast.feature import gradient as fast_gradient
-from menpofast.utils import build_parts_image
+from menpo.image import Image
+from menpo.feature import gradient as fast_gradient
 
 from .result import AAMAlgorithmResult
 
 
-# Abstract Interface for AAM Algorithms ---------------------------------------
+class AAMInterface(object):
+
+    def __init__(self, aam_algorithm):
+        self.algorithm = aam_algorithm
+
+        # grab algorithm transform
+        self.transform = self.algorithm.transform
+        # grab number of shape parameters
+        self.n = self.transform.n_parameters
+        # grab algorithm appearance model
+        self.appearance_model = self.algorithm.appearance_model
+        # grab number of appearance parameters
+        self.m = self.appearance_model.n_active_components
+
+    @abc.abstractmethod
+    def warp_jacobian(self):
+        pass
+
+    @abc.abstractmethod
+    def warp(self, image):
+        pass
+
+    @abc.abstractmethod
+    def gradient(self, image):
+        pass
+
+    @abc.abstractmethod
+    def steepest_descent_images(self, nabla, dW_dp):
+        pass
+
+    @classmethod
+    def solve_shape_map(cls, H, J, e, J_prior, p):
+        # compute and return MAP solution
+        H += np.diag(J_prior)
+        Je = J_prior * p + J.T.dot(e)
+        return -np.linalg.solve(H, Je)
+
+    @classmethod
+    def solve_shape_ml(cls, H, J, e):
+        # compute and return ML solution
+        return -np.linalg.solve(H, J.T.dot(e))
+
+    @abc.abstractmethod
+    def algorithm_result(self, image, shape_parameters,
+                         appearance_parameters=None, gt_shape=None):
+        pass
+
+
+class GlobalAAMInterface(AAMInterface):
+
+    def __init__(self, aam_algorithm, sampling_step=None):
+        super(GlobalAAMInterface, self). __init__(aam_algorithm)
+
+        # grab algorithm shape model
+        self.shape_model = self.transform.pdm.model
+        # grab algorithm template
+        self.template = self.algorithm.template
+        # grab algorithm template mask true indices
+        self.true_indices = self.template.mask.true_indices()
+
+        n_true_pixels = self.template.n_true_pixels()
+        n_channels = self.template.n_channels
+        n_parameters = self.transform.n_parameters
+        sampling_mask = np.zeros(n_true_pixels, dtype=np.bool)
+
+        if sampling_step is None:
+            sampling_step = 1
+        sampling_pattern = xrange(0, n_true_pixels, sampling_step)
+        sampling_mask[sampling_pattern] = 1
+
+        self.i_mask = np.nonzero(np.tile(
+            sampling_mask[None, ...], (n_channels, 1)).flatten())[0]
+        self.dW_dp_mask = np.nonzero(np.tile(
+            sampling_mask[None, ..., None], (2, 1, n_parameters)))
+        self.nabla_mask = np.nonzero(np.tile(
+            sampling_mask[None, None, ...], (2, n_channels, 1)))
+        self.nabla2_mask = np.nonzero(np.tile(
+            sampling_mask[None, None, None, ...], (2, 2, n_channels, 1)))
+
+    def warp_jacobian(self):
+        dW_dp = np.rollaxis(self.transform.d_dp(self.true_indices), -1)
+        return dW_dp[self.dW_dp_mask].reshape((dW_dp.shape[0], -1,
+                                               dW_dp.shape[2]))
+
+    def warp(self, image):
+        return image.warp_to_mask(self.algorithm.template.mask,
+                                  self.algorithm.transform)
+
+    def gradient(self, image):
+        nabla = fast_gradient(image)
+        nabla.set_boundary_pixels()
+        return nabla.as_vector().reshape((2, image.n_channels, -1))
+
+    def steepest_descent_images(self, nabla, dW_dp):
+        # reshape gradient
+        # nabla: n_dims x n_channels x n_pixels
+        nabla = nabla[self.nabla_mask].reshape(nabla.shape[:2] + (-1,))
+        # compute steepest descent images
+        # nabla: n_dims x n_channels x n_pixels
+        # warp_jacobian: n_dims x            x n_pixels x n_params
+        # sdi:            n_channels x n_pixels x n_params
+        sdi = 0
+        a = nabla[..., None] * dW_dp[:, None, ...]
+        for d in a:
+            sdi += d
+        # reshape steepest descent images
+        # sdi: (n_channels x n_pixels) x n_params
+        return sdi.reshape((-1, sdi.shape[2])).dot(self.transform.Jp().T)
+
+    def algorithm_result(self, image, shape_parameters,
+                         appearance_parameters=None, gt_shape=None):
+        return AAMAlgorithmResult(
+            image, self.algorithm, shape_parameters,
+            appearance_parameters=appearance_parameters, gt_shape=gt_shape)
+
+
+class PartsAAMInterface(AAMInterface):
+
+    def __init__(self, aam_algorithm, sampling_mask=None):
+        super(PartsAAMInterface, self). __init__(aam_algorithm)
+
+        # grab algorithm shape model
+        self.shape_model = self.transform.model
+        # grab appearance model parts shape
+        self.parts_shape = self.appearance_model.parts_shape
+
+        if sampling_mask is None:
+            sampling_mask = np.ones(self.parts_shape, dtype=np.bool)
+
+        image_shape = self.algorithm.template.pixels.shape
+        image_mask = np.tile(sampling_mask[None, None, None, ...],
+                             image_shape[:3] + (1, 1))
+        self.i_mask = np.nonzero(image_mask.flatten())[0]
+        self.nabla_mask = np.nonzero(np.tile(
+            image_mask[None, ...], (2, 1, 1, 1, 1, 1)))
+        self.nabla2_mask = np.nonzero(np.tile(
+            image_mask[None, None, ...], (2, 2, 1, 1, 1, 1, 1)))
+
+    def warp_jacobian(self):
+        return np.rollaxis(self.transform.d_dp(None), -1)
+
+    def warp(self, image):
+        return Image(image.extract_patches(
+            self.transform.target, patch_size=self.parts_shape,
+            as_single_array=True))
+
+    def gradient(self, image):
+        nabla = fast_gradient(image.pixels.reshape((-1,) + self.parts_shape))
+        return nabla.reshape((2,) + image.pixels.shape)
+
+    def steepest_descent_images(self, nabla, dW_dp):
+        # reshape nabla
+        # nabla: dims x parts x off x ch x (h x w)
+        nabla = nabla[self.nabla_mask].reshape(
+            nabla.shape[:-2] + (-1,))
+        # compute steepest descent images
+        # nabla: dims x parts x off x ch x (h x w)
+        # ds_dp:    dims x parts x                             x params
+        # sdi:             parts x off x ch x (h x w) x params
+        sdi = 0
+        a = nabla[..., None] * dW_dp[..., None, None, None, :]
+        for d in a:
+            sdi += d
+
+        # reshape steepest descent images
+        # sdi: (parts x offsets x ch x w x h) x params
+        return sdi.reshape((-1, sdi.shape[-1]))
+
+    def algorithm_result(self, image, shape_parameters,
+                         appearance_parameters=None, gt_shape=None):
+        return AAMAlgorithmResult(
+            image, self.algorithm, shape_parameters,
+            appearance_parameters=appearance_parameters, gt_shape=gt_shape)
+
 
 class AAMAlgorithm(object):
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, aam_interface, appearance_model, transform,
                  eps=10**-5, **kwargs):
@@ -23,322 +194,278 @@ class AAMAlgorithm(object):
         self.template = appearance_model.mean()
         self.transform = transform
         self.eps = eps
-
         # set interface
         self.interface = aam_interface(self, **kwargs)
+        # perform pre-computations
+        self.precompute()
 
-        self._U = self.appearance_model.components.T
-        self._pinv_U = np.linalg.pinv(
-            self._U[self.interface.image_vec_mask, :]).T
+    def precompute(self):
+        # grab number of shape and appearance parameters
+        self.n = self.transform.n_parameters
+        self.m = self.appearance_model.n_active_components
+
+        # grab appearance model components
+        self.A = self.appearance_model.components
+        # mask them
+        self.A_m = self.A.T[self.interface.i_mask, :]
+        # compute their pseudoinverse
+        self.pinv_A_m = np.linalg.pinv(self.A_m)
+
+        # grab appearance model mean
+        self.a_bar = self.appearance_model.mean()
+        # vectorize it and mask it
+        self.a_bar_m = self.a_bar.as_vector()[self.interface.i_mask]
+
+        # compute warp jacobian
+        self.dW_dp = self.interface.warp_jacobian()
+
+        # compute shape model prior
+        s2 = (self.appearance_model.noise_variance() /
+              self.interface.shape_model.variance())
+        L = self.interface.shape_model.eigenvalues
+        self.s2_inv_L = np.hstack((np.ones((4,)), s2 / L))
+        # compute appearance model prior
+        S = self.appearance_model.eigenvalues
+        self.s2_inv_S = s2 / S
+
+    @abc.abstractmethod
+    def run(self, image, initial_shape, max_iters=20, gt_shape=None,
+            map_inference=False):
+        pass
+
+
+class ProjectOut(AAMAlgorithm):
+
+    def __init__(self, aam_interface, appearance_model, transform,
+                 eps=10**-5, **kwargs):
+        # call super constructor
+        super(ProjectOut, self).__init__(
+            aam_interface, appearance_model, transform, eps, **kwargs)
+
+    def project_out(self, J):
+        r"""
+        Project-out appearance bases from a particular vector or matrix
+        """
+        return J - self.A_m.dot(self.pinv_A_m.dot(J))
+
+    def run(self, image, initial_shape, gt_shape=None, max_iters=20,
+            map_inference=False):
+        r"""
+        Run Project-out AAM algorithms
+        """
+        # initialize transform
+        self.transform.set_target(initial_shape)
+        p_list = [self.transform.as_vector()]
+
+        # initialize iteration counter and epsilon
+        k = 0
+        eps = np.Inf
+
+        # Compositional Gauss-Newton loop
+        while k < max_iters and eps > self.eps:
+            # warp image
+            self.i = self.interface.warp(image)
+            # vectorize it and mask it
+            i_m = self.i.as_vector()[self.interface.i_mask]
+
+            # compute masked error
+            self.e_m = i_m - self.a_bar_m
+
+            # solve for increments on the shape parameters
+            self.dp = self.solve(map_inference)
+
+            # update warp
+            s_k = self.transform.target.points
+            self.update_warp()
+            p_list.append(self.transform.as_vector())
+
+            # test convergence
+            eps = np.abs(np.linalg.norm(s_k - self.transform.target.points))
+
+            # increase iteration counter
+            k += 1
+
+        # return algorithm result
+        return self.interface.algorithm_result(
+            image, p_list, gt_shape=gt_shape)
+
+    @abc.abstractmethod
+    def solve(self, map_inference):
+        pass
+
+    @abc.abstractmethod
+    def update_warp(self):
+        r"""
+        Update warp
+        """
+        pass
+
+
+class PIC(ProjectOut):
+    r"""
+    Project-out Inverse Compositional Gauss-Newton algorithm
+    """
+    def precompute(self):
+        r"""
+        Pre-compute PIC state
+        """
+        # call super method
+        super(PIC, self).precompute()
+
+        # compute appearance model mean gradient
+        nabla_a = self.interface.gradient(self.a_bar)
+        # compute masked inverse Jacobian
+        J_m = self.interface.steepest_descent_images(-nabla_a, self.dW_dp)
+        # project out appearance model from it
+        self.QJ_m = self.project_out(J_m)
+        # compute masked inverse Hessian
+        self.JQJ_m = self.QJ_m.T.dot(J_m)
+        # compute masked Jacobian pseudo-inverse
+        self.pinv_QJ_m = np.linalg.solve(self.JQJ_m, self.QJ_m.T)
+
+    def solve(self, map_inference):
+        # solve for increments on the shape parameters
+        if map_inference:
+            return self.interface.solve_shape_map(
+                self.JQJ_m, self.QJ_m, self.e_m, self.s2_inv_L,
+                self.transform.as_vector())
+        else:
+            return -self.pinv_QJ_m.dot(self.e_m)
+
+    def update_warp(self):
+        r"""
+        Update warp based on Inverse Composition
+        """
+        self.transform.from_vector_inplace(
+            self.transform.as_vector() - self.dp)
+
+
+class Alternating(AAMAlgorithm):
+
+    def __init__(self, aam_interface, appearance_model, transform,
+                 eps=10**-5, **kwargs):
+        # call super constructor
+        super(Alternating, self).__init__(
+            aam_interface, appearance_model, transform, eps, **kwargs)
 
         # pre-compute
-        self._precompute()
+        self.precompute()
 
-    @abc.abstractmethod
-    def _precompute(self, **kwargs):
-        pass
+    def precompute(self, **kwargs):
+        r"""
+        Pre-compute common state for Alternating algorithms
+        """
+        # call super method
+        super(Alternating, self).precompute()
 
-    @abc.abstractmethod
-    def run(self, image, initial_shape, max_iters=20, gt_shape=None, **kwargs):
-        pass
-
-
-# Concrete Implementations of AAM Algorithm -----------------------------------
-
-class PIC(AAMAlgorithm):
-    r"""
-    Project-Out Inverse Compositional Algorithm
-    """
-
-    def _precompute(self):
-
-        # sample appearance model
-        self._U = self._U[self.interface.image_vec_mask, :]
-
-        # compute model's gradient
-        nabla_t = self.interface.gradient(self.template)
-
-        # compute warp jacobian
-        dw_dp = self.interface.dw_dp()
-
-        # compute steepest descent images
-        j = self.interface.steepest_descent_images(nabla_t, dw_dp)
-
-        # project out appearance model from J
-        self._j_po = j - self._U.dot(self._pinv_U.T.dot(j))
-
-        # compute inverse hessian
-        self._h = self._j_po.T.dot(j)
+        self.AA_m_map = self.A_m.T.dot(self.A_m) + np.diag(self.s2_inv_S)
 
     def run(self, image, initial_shape, gt_shape=None, max_iters=20,
-            prior=False):
-
+            map_inference=False):
+        r"""
+        Run Alternating AAM algorithms
+        """
         # initialize transform
         self.transform.set_target(initial_shape)
-        shape_parameters = [self.transform.as_vector()]
-        # masked model mean
-        masked_m = self.appearance_model.mean().as_vector()[
-            self.interface.image_vec_mask]
+        p_list = [self.transform.as_vector()]
 
-        for _ in xrange(max_iters):
+        # initialize iteration counter and epsilon
+        k = 0
+        eps = np.Inf
 
-            # compute warped image with current weights
-            i = self.interface.warp(image)
-
-            # reconstruct appearance
-            masked_i = i.as_vector()[self.interface.image_vec_mask]
-
-            # compute error image
-            e = masked_m - masked_i
-
-            # compute gauss-newton parameter updates
-            dp = self.interface.solve(self._h, self._j_po, e, prior)
-
-            # update transform
-            target = self.transform.target
-            self.transform.from_vector_inplace(self.transform.as_vector() + dp)
-            shape_parameters.append(self.transform.as_vector())
-
-            # test convergence
-            error = np.abs(np.linalg.norm(
-                target.points - self.transform.target.points))
-            if error < self.eps:
-                break
-
-        # return dm algorithm result
-        return AAMAlgorithmResult(image, self, shape_parameters,
-                                  gt_shape=gt_shape)
-
-
-class AIC(AAMAlgorithm):
-    r"""
-    Alternating Inverse Compositional Algorithm
-    """
-
-    def _precompute(self):
-
-        # compute warp jacobian
-        self._dw_dp = self.interface.dw_dp()
-
-    def run(self, image, initial_shape, gt_shape=None, max_iters=20,
-            prior=False):
-
-        # initialize transform
-        self.transform.set_target(initial_shape)
-        shape_parameters = [self.transform.as_vector()]
-        # initial appearance parameters
-        appearance_parameters = [0]
-        # model mean
-        m = self.appearance_model.mean().as_vector()
-        # masked model mean
-        masked_m = m[self.interface.image_vec_mask]
-
-        for _ in xrange(max_iters):
-
+        # Compositional Gauss-Newton loop
+        while k < max_iters and eps > self.eps:
             # warp image
-            i = self.interface.warp(image)
-            # mask image
-            masked_i = i.as_vector()[self.interface.image_vec_mask]
+            self.i = self.interface.warp(image)
+            # mask warped image
+            i_m = self.i.as_vector()[self.interface.i_mask]
 
-            # reconstruct appearance
-            c = self._pinv_U.T.dot(masked_i - masked_m)
-            t = self._U.dot(c) + m
-            self.template.from_vector_inplace(t)
-            appearance_parameters.append(c)
+            if k == 0:
+                # initialize appearance parameters by projecting masked image
+                # onto masked appearance model
+                c = self.pinv_A_m.dot(i_m - self.a_bar_m)
+                self.a = self.appearance_model.instance(c)
+                a_m = self.a.as_vector()[self.interface.i_mask]
+                c_list = [c]
+                Jdp = 0
+            else:
+                Jdp = J_m.dot(self.dp)
 
-            # compute error image
-            e = (self.template.as_vector()[self.interface.image_vec_mask] -
-                 masked_i)
+            # compute masked error
+            e_m = i_m - a_m
 
-            # compute model gradient
-            nabla_t = self.interface.gradient(self.template)
+            # solve for increment on the appearance parameters
+            if map_inference:
+                Ae_m_map = - self.s2_inv_S * c + self.A_m.T.dot(e_m + Jdp)
+                dc = np.linalg.solve(self.AA_m_map, Ae_m_map)
+            else:
+                dc = self.pinv_A_m.dot(e_m + Jdp)
 
-            # compute model jacobian
-            j = self.interface.steepest_descent_images(nabla_t, self._dw_dp)
+            # compute masked  Jacobian
+            J_m = self.compute_jacobian()
+            # compute masked Hessian
+            H_m = J_m.T.dot(J_m)
+            # solve for increments on the shape parameters
+            if map_inference:
+                self.dp = self.interface.solve_shape_map(
+                    H_m, J_m, e_m - self.A_m.dot(dc), self.s2_inv_L,
+                    self.transform.as_vector())
+            else:
+                self.dp = self.interface.solve_shape_ml(H_m, J_m,
+                                                        e_m - self.A_m.dot(dc))
 
-            # compute hessian
-            h = j.T.dot(j)
+            # update appearance parameters
+            c += dc
+            self.a = self.appearance_model.instance(c)
+            a_m = self.a.as_vector()[self.interface.i_mask]
+            c_list.append(c)
 
-            # compute gauss-newton parameter updates
-            dp = self.interface.solve(h, j, e, prior)
-
-            # update transform
-            target = self.transform.target
-            self.transform.from_vector_inplace(self.transform.as_vector() + dp)
-            shape_parameters.append(self.transform.as_vector())
+            # update warp
+            s_k = self.transform.target.points
+            self.update_warp()
+            p_list.append(self.transform.as_vector())
 
             # test convergence
-            error = np.abs(np.linalg.norm(
-                target.points - self.transform.target.points))
-            if error < self.eps:
-                break
+            eps = np.abs(np.linalg.norm(s_k - self.transform.target.points))
 
-        # return fg2015 algorithm result
-        return AAMAlgorithmResult(image, self, shape_parameters,
-                                  appearance_parameters=appearance_parameters,
-                                  gt_shape=gt_shape)
+            # increase iteration counter
+            k += 1
 
-
-# Abstract Interface for AAM interfaces ---------------------------------------
-
-class AAMInterface(object):
-
-    __metaclass__ = abc.ABCMeta
-
-    def __init__(self, aam_algorithm):
-        self.algorithm = aam_algorithm
+        # return algorithm result
+        return self.interface.algorithm_result(
+            image, p_list, appearance_parameters=c_list, gt_shape=gt_shape)
 
     @abc.abstractmethod
-    def dw_dp(self):
+    def compute_jacobian(self):
+        r"""
+        Compute Jacobian
+        """
         pass
 
     @abc.abstractmethod
-    def warp(self, image):
-        pass
-
-    @abc.abstractmethod
-    def gradient(self, image):
-        pass
-
-    @abc.abstractmethod
-    def steepest_descent_images(self, gradient, dw_dp):
-        pass
-
-    @abc.abstractmethod
-    def solve(self, h, j, e, prior):
+    def update_warp(self):
+        r"""
+        Update warp
+        """
         pass
 
 
-# Concrete Implementations of AAM Interfaces ----------------------------------
+class AIC(Alternating):
+    r"""
+    Simultaneous Inverse Compositional Gauss-Newton algorithm
+    """
+    def compute_jacobian(self):
+        r"""
+        Compute Inverse Jacobian
+        """
+        # compute warped appearance model gradient
+        nabla_a = self.interface.gradient(self.a)
+        # return inverse Jacobian
+        return self.interface.steepest_descent_images(-nabla_a, self.dW_dp)
 
-class GlobalAAMInterface(AAMInterface):
-
-    def __init__(self, aam_algorithm, sampling_step=None):
-        super(GlobalAAMInterface, self). __init__(aam_algorithm)
-
-        n_true_pixels = self.algorithm.template.n_true_pixels()
-        n_channels = self.algorithm.template.n_channels
-        n_parameters = self.algorithm.transform.n_parameters
-        sampling_mask = np.require(np.zeros(n_true_pixels), dtype=np.bool)
-
-        if sampling_step is None:
-            sampling_step = 1
-        sampling_pattern = xrange(0, n_true_pixels, sampling_step)
-        sampling_mask[sampling_pattern] = 1
-
-        self.image_vec_mask = np.nonzero(np.tile(
-            sampling_mask[None, ...], (n_channels, 1)).flatten())[0]
-        self.dw_dp_mask = np.nonzero(np.tile(
-            sampling_mask[None, ..., None], (2, 1, n_parameters)))
-        self.gradient_mask = np.nonzero(np.tile(
-            sampling_mask[None, None, ...], (2, n_channels, 1)))
-        self.gradient2_mask = np.nonzero(np.tile(
-            sampling_mask[None, None, None, ...], (2, 2, n_channels, 1)))
-
-    def dw_dp(self):
-        dw_dp = np.rollaxis(self.algorithm.transform.d_dp(
-            self.algorithm.template.mask.true_indices()), -1)
-        return dw_dp[self.dw_dp_mask].reshape((dw_dp.shape[0], -1,
-                                               dw_dp.shape[2]))
-
-    def warp(self, image):
-        return image.warp_to_mask(self.algorithm.template.mask,
-                                  self.algorithm.transform)
-
-    def gradient(self, image):
-        return image.gradient(
-            nullify_values_at_mask_boundaries=True).as_vector().reshape(
-                (2, image.n_channels, -1))
-
-    def steepest_descent_images(self, gradient, dw_dp):
-        # reshape gradient
-        # gradient: n_dims x n_channels x n_pixels
-        gradient = gradient[self.gradient_mask].reshape(
-            gradient.shape[:2] + (-1,))
-        # compute steepest descent images
-        # gradient: n_dims x n_channels x n_pixels
-        # dw_dp:    n_dims x            x n_pixels x n_params
-        # sdi:               n_channels x n_pixels x n_params
-        sdi = 0
-        a = gradient[..., None] * dw_dp[:, None, ...]
-        for d in a:
-            sdi += d
-
-        # reshape steepest descent images
-        # sdi: (n_channels x n_pixels) x n_params
-        return sdi.reshape((-1, sdi.shape[2]))
-
-    def solve(self, h, j, e, prior):
-        t = self.algorithm.transform
-        jp = t.jp()
-
-        if prior:
-            inv_h = np.linalg.inv(h)
-            dp = inv_h.dot(j.T.dot(e))
-            dp = -np.linalg.solve(t.h_prior + jp.dot(inv_h.dot(jp.T)),
-                                  t.j_prior * t.as_vector() - jp.dot(dp))
-        else:
-            dp = np.linalg.solve(h, j.T.dot(e))
-            dp = jp.dot(dp)
-
-        return dp
-
-
-class PartsAAMInterface(AAMInterface):
-
-    def __init__(self, aam_algorithm, sampling_mask=None):
-        super(PartsAAMInterface, self). __init__(aam_algorithm)
-
-        if sampling_mask is None:
-            parts_shape = self.algorithm.appearance_model.parts_shape
-            sampling_mask = np.require(np.ones((parts_shape)), dtype=np.bool)
-
-        image_shape = self.algorithm.template.pixels.shape
-        image_mask = np.tile(sampling_mask[None, None, None, ...],
-                             image_shape[:3] + (1, 1))
-        self.image_vec_mask = np.nonzero(image_mask.flatten())[0]
-        self.gradient_mask = np.nonzero(np.tile(
-            image_mask[None, ...], (2, 1, 1, 1, 1, 1)))
-
-    def dw_dp(self):
-        return np.rollaxis(self.algorithm.transform.d_dp(None), -1)
-
-    def warp(self, image):
-        return build_parts_image(
-            image, self.algorithm.transform.target,
-            parts_shape=self.algorithm.parts_shape,
-            normalize_parts=self.algorithm.normalize_parts)
-
-    def gradient(self, image):
-        g = fast_gradient(image.pixels.reshape(
-            (-1,) + self.algorithm.parts_shape))
-        return g.reshape((2,) + image.pixels.shape)
-
-    def steepest_descent_images(self, gradient, dw_dp):
-        # reshape gradient
-        # gradient: n_dims x n_parts x offsets x n_ch x (h x w)
-        gradient = gradient[self.gradient_mask].reshape(
-            gradient.shape[:-2] + (-1,))
-        # compute steepest descent images
-        # gradient: n_dims x n_parts x offsets x n_ch x (h x w)
-        # ds_dp:    n_dims x n_parts x                          x n_params
-        # sdi:               n_parts x offsets x n_ch x (h x w) x n_params
-        sdi = 0
-        a = gradient[..., None] * dw_dp[..., None, None, None, :]
-        for d in a:
-            sdi += d
-
-        # reshape steepest descent images
-        # sdi: (n_parts x n_offsets x n_ch x w x h) x n_params
-        return sdi.reshape((-1, sdi.shape[-1]))
-
-    def solve(self, h, j, e, prior):
-        t = self.algorithm.transform
-
-        if prior:
-            dp = -np.linalg.solve(t.h_prior + h,
-                                  t.j_prior * t.as_vector() - j.T.dot(e))
-        else:
-            dp = np.linalg.solve(h, j.T.dot(e))
-
-        return dp
+    def update_warp(self):
+        r"""
+        Update warp based on Inverse Composition
+        """
+        self.transform.from_vector_inplace(
+            self.transform.as_vector() - self.dp)

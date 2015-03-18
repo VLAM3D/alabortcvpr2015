@@ -6,17 +6,14 @@ import numpy as np
 from menpo.transform import Scale, Translation, GeneralizedProcrustesAnalysis
 from menpo.model import PCAModel
 from menpo.shape import mean_pointcloud
+from menpo.image import Image
 from menpo.visualize import print_dynamic, progress_bar_str
 
-from menpofast.utils import build_parts_image, convert_from_menpo
-
-from menpofit.transform.piecewiseaffine import DifferentiablePiecewiseAffine
-from menpofit.aam.builder import build_reference_frame
+from menpofit.transform import DifferentiablePiecewiseAffine
+from menpofit.aam.base import build_reference_frame
 
 from alabortcvpr2015.utils import fsmooth
 
-
-# Abstract Interface for AAM Builders -----------------------------------------
 
 class AAMBuilder(object):
 
@@ -136,7 +133,7 @@ class AAMBuilder(object):
         for c, i in enumerate(images):
             if verbose:
                 print_dynamic(
-                    '- Computing feature space: {}'.format(
+                    '{}Computing feature space: {}'.format(
                         level_str, progress_bar_str((c + 1.) / len(images),
                                                     show_bar=False)))
             if self.features:
@@ -151,7 +148,7 @@ class AAMBuilder(object):
         for c, i in enumerate(images):
             if verbose:
                 print_dynamic(
-                    '- Scaling features: {}'.format(
+                    '{}Scaling features: {}'.format(
                         level_str, progress_bar_str((c + 1.) / len(images),
                                                     show_bar=False)))
             scaled_images.append(i.rescale(s))
@@ -196,8 +193,6 @@ class AAMBuilder(object):
         pass
 
 
-# Concrete Implementations of AAM Builders ------------------------------------
-
 class GlobalAAMBuilder(AAMBuilder):
 
     def __init__(self, features=None, transform=DifferentiablePiecewiseAffine,
@@ -219,9 +214,8 @@ class GlobalAAMBuilder(AAMBuilder):
         self.boundary = boundary
 
     def _build_reference_frame(self, mean_shape):
-        return convert_from_menpo(
-            build_reference_frame(mean_shape, boundary=self.boundary,
-                                  trilist=self.trilist))
+        return build_reference_frame(mean_shape, boundary=self.boundary,
+                                     trilist=self.trilist)
 
     def _warp_images(self, images, shapes, ref_shape, level_str, verbose):
         # compute transforms
@@ -251,9 +245,9 @@ class GlobalAAMBuilder(AAMBuilder):
 
 class PartsAAMBuilder(AAMBuilder):
 
-    def __init__(self, parts_shape=(16, 16), features=None,
+    def __init__(self, parts_shape=(17, 17), features=None,
                  normalize_parts=False, diagonal=None, sigma=None,
-                 scales=(1, .5), scale_shapes=True, scale_features=True,
+                 scales=(1, .5), scale_shapes=False, scale_features=True,
                  max_shape_components=None, max_appearance_components=None):
 
         self.parts_shape = parts_shape
@@ -277,8 +271,8 @@ class PartsAAMBuilder(AAMBuilder):
                     level_str,
                     progress_bar_str(float(c + 1) / len(images),
                                      show_bar=False)))
-            parts_image = build_parts_image(
-                i, s, self.parts_shape, normalize_parts=self.normalize_parts)
+            parts_image = Image(i.extract_patches(
+                s, patch_size=self.parts_shape, as_single_array=True))
             parts_images.append(parts_image)
 
         return parts_images

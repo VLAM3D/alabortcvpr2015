@@ -1,19 +1,13 @@
 from __future__ import division
 import abc
-import menpo.io as mio
 
 from menpo.transform import Scale
+from menpo.image import Image
 
 from menpofit.fittingresult import compute_error
 
-from menpofast.image import Image
-
-
-# Abstract Interface for Results ----------------------------------------------
 
 class Result(object):
-
-    __metaclass__ = abc.ABCMeta
 
     @abc.abstractproperty
     def n_iters(self):
@@ -168,8 +162,6 @@ class Result(object):
         return out
 
 
-# Abstract Interfaces for Algorithm Results -----------------------------------
-
 class AlgorithmResult(Result):
 
     @property
@@ -216,8 +208,6 @@ class AlgorithmResult(Result):
     def initial_shape(self):
         return self.initial_transform.target
 
-
-# Abstract Interface for Fitter Results ---------------------------------------
 
 class FitterResult(Result):
 
@@ -297,45 +287,4 @@ class FitterResult(Result):
         Scale(self.scales[-1]/self.scales[0],
               initial_shape.n_dims).apply_inplace(initial_shape)
         return self._affine_correction.apply(initial_shape)
-
-
-# Serializable Result --------------------------------------------------------
-
-class SerializableResult(Result):
-
-    def __init__(self, image_path, shapes, n_iters, algorithm, gt_shape=None):
-        self._image_path = image_path
-        self._image = None
-        self._gt_shape = gt_shape
-        self._shapes = shapes
-        self._n_iters = n_iters
-        self.algorithm = str(algorithm)
-
-    @property
-    def n_iters(self):
-        return self._n_iters
-
-    def shapes(self, as_points=False):
-        if as_points:
-            return [s.points for s in self._shapes]
-        else:
-            return self._shapes
-
-    @property
-    def initial_shape(self):
-        return self._shapes[0]
-
-    @property
-    def final_shape(self):
-        return self._shapes[-1]
-
-    @property
-    def image(self):
-        if self._image is None:
-            image = mio.import_image(self._image_path)
-            image = Image.from_menpo_image(image)
-            image.crop_to_landmarks_proportion_inplace(0.5)
-            self._image = image
-
-        return self._image
 

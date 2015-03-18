@@ -3,32 +3,41 @@ from __future__ import division
 from alabortcvpr2015.result import AlgorithmResult, FitterResult
 
 
-# Concrete Implementations of AAM Algorithm Results #--------------------------
-
 class AAMAlgorithmResult(AlgorithmResult):
 
-    def __init__(self, image, fitter, shape_parameters,
+    def __init__(self, image, fitter, shape_parameters, costs=0,
                  appearance_parameters=None, gt_shape=None):
         super(AAMAlgorithmResult, self).__init__()
         self.image = image
         self.fitter = fitter
         self.shape_parameters = shape_parameters
+        self._costs = costs
         self.appearance_parameters = appearance_parameters
         self._gt_shape = gt_shape
 
+    def costs(self, normalize=False):
+        costs = self._costs
+        if normalize:
+            costs /= self._costs[0]
+        return list(costs)
 
-# Concrete Implementations of AAM Fitter Results # ----------------------------
+    @property
+    def final_cost(self):
+        return self.costs[-1]
+
+    @property
+    def initial_cost(self):
+        return self.costs[0]
+
 
 class AAMFitterResult(FitterResult):
 
-    @property
     def costs(self):
-        r"""
-        Returns a list containing the cost at each fitting iteration.
+        costs = []
+        for j, alg in enumerate(self.algorithm_results):
+            costs += alg.costs()
 
-        :type: `list` of `float`
-        """
-        raise ValueError('costs not implemented yet.')
+        return costs
 
     @property
     def final_cost(self):

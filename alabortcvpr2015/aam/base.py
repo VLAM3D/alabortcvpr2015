@@ -1,40 +1,12 @@
 from __future__ import division
-import abc
 import numpy as np
-
-from serializablecallable import SerializableCallable
 
 from menpo.shape import TriMesh
 
-from menpofit.aam.builder import build_reference_frame
+from menpofit.aam.base import build_reference_frame
 
-
-# Abstract Interface for AAM Objects ------------------------------------------
 
 class AAM(object):
-
-    __metaclass__ = abc.ABCMeta
-
-    def __getstate__(self):
-        import menpofast.feature as menpofast_feature
-        d = self.__dict__.copy()
-
-        features = d.pop('features')
-        if self.pyramid_on_features:
-            # features is a single callable
-            d['features'] = SerializableCallable(features, [menpofast_feature])
-        else:
-            # features is a list of callables
-            d['features'] = [SerializableCallable(f, [menpofast_feature])
-                             for f in features]
-        return d
-
-    def __setstate__(self, state):
-        try:
-            state['features'] = state['features'].callable
-        except AttributeError:
-            state['features'] = [f.callable for f in state['features']]
-        self.__dict__.update(state)
 
     @property
     def n_levels(self):
@@ -116,8 +88,6 @@ class AAM(object):
         return self._instance(level, shape_instance, appearance_instance)
 
 
-# Concrete Implementations of AAM Objects -------------------------------------
-
 class GlobalAAM(AAM):
 
     def __init__(self, shape_models, appearance_models, reference_shape,
@@ -134,7 +104,7 @@ class GlobalAAM(AAM):
         self.scale_features = scale_features
 
     def _instance(self, level, shape_instance, appearance_instance):
-        template = self.appearance_models[level].mean
+        template = self.appearance_models[level].mean()
         landmarks = template.landmarks['source'].lms
 
         reference_frame = self._build_reference_frame(
