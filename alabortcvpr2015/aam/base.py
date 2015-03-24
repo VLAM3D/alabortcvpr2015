@@ -91,14 +91,12 @@ class AAM(object):
 class GlobalAAM(AAM):
 
     def __init__(self, shape_models, appearance_models, reference_shape,
-                 transform, features, sigma, scales, scale_shapes,
-                 scale_features):
+                 transform, features, scales, scale_shapes, scale_features):
         self.shape_models = shape_models
         self.appearance_models = appearance_models
         self.transform = transform
         self.features = features
         self.reference_shape = reference_shape
-        self.sigma = sigma
         self.scales = scales
         self.scale_shapes = scale_shapes
         self.scale_features = scale_features
@@ -130,7 +128,7 @@ class GlobalAAM(AAM):
 class PartsAAM(AAM):
 
     def __init__(self, shape_models, appearance_models, reference_shape,
-                 parts_shape, features, normalize_parts, sigma, scales,
+                 parts_shape, features, normalize_parts, scales,
                  scale_shapes, scale_features):
 
         self.shape_models = shape_models
@@ -138,7 +136,6 @@ class PartsAAM(AAM):
         self.parts_shape = parts_shape
         self.features = features
         self.normalize_parts = normalize_parts
-        self.sigma = sigma
         self.reference_shape = reference_shape
         self.scales = scales
         self.scale_shapes = scale_shapes

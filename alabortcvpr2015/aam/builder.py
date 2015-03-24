@@ -2,6 +2,7 @@ from __future__ import division
 import abc
 from copy import deepcopy
 
+from menpo.feature import no_op
 from menpo.model import PCAModel
 from menpo.visualize import print_dynamic
 
@@ -107,17 +108,15 @@ class AAMBuilder(object):
 
 class GlobalAAMBuilder(AAMBuilder):
 
-    def __init__(self, features=None, transform=DifferentiablePiecewiseAffine,
-                 trilist=None, diagonal=None, sigma=None, scales=(1, .5),
+    def __init__(self, features=no_op, transform=DifferentiablePiecewiseAffine,
+                 trilist=None, diagonal=None, scales=(1, .5),
                  scale_shapes=True, scale_features=True,
                  max_shape_components=None, max_appearance_components=None,
                  boundary=3):
-
         self.features = features
         self.transform = transform
         self.trilist = trilist
         self.diagonal = diagonal
-        self.sigma = sigma
         self.scales = list(scales)
         self.scale_shapes = scale_shapes
         self.scale_features = scale_features
@@ -135,22 +134,20 @@ class GlobalAAMBuilder(AAMBuilder):
 
     def _build_aam(self, shape_models, appearance_models, reference_shape):
         return GlobalAAM(shape_models, appearance_models, reference_shape,
-                         self.transform, self.features, self.sigma,
-                         self.scales, self.scale_shapes, self.scale_features)
+                         self.transform, self.features, self.scales,
+                         self.scale_shapes, self.scale_features)
 
 
 class PartsAAMBuilder(AAMBuilder):
 
-    def __init__(self, parts_shape=(17, 17), features=None,
-                 normalize_parts=False, diagonal=None, sigma=None,
-                 scales=(1, .5), scale_shapes=False, scale_features=True,
+    def __init__(self, parts_shape=(17, 17), features=no_op,
+                 normalize_parts=False, diagonal=None, scales=(1, .5),
+                 scale_shapes=False, scale_features=True,
                  max_shape_components=None, max_appearance_components=None):
-
         self.parts_shape = parts_shape
         self.features = features
         self.normalize_parts = normalize_parts
         self.diagonal = diagonal
-        self.sigma = sigma
         self.scales = list(scales)
         self.scale_shapes = scale_shapes
         self.scale_features = scale_features
@@ -164,7 +161,7 @@ class PartsAAMBuilder(AAMBuilder):
     def _build_aam(self, shape_models, appearance_models, reference_shape):
         return PartsAAM(shape_models, appearance_models, reference_shape,
                         self.parts_shape, self.features,
-                        self.normalize_parts, self.sigma, self.scales,
+                        self.normalize_parts, self.scales,
                         self.scale_shapes, self.scale_features)
 
 
