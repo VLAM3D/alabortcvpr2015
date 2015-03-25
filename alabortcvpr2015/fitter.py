@@ -1,5 +1,4 @@
 from __future__ import division
-import abc
 
 import numpy as np
 
@@ -8,15 +7,12 @@ from menpo.transform import Scale, AlignmentAffine
 from menpofit.base import noisy_align
 from menpofit.fitter import align_shape_with_bb
 
-from .utils import fsmooth
 from .result import FitterResult
 
 
 # Abstract Interface for Fitters ------------------------------------------
 
 class Fitter(object):
-
-    __metaclass__ = abc.ABCMeta
 
     @property
     def reference_shape(self):
@@ -45,10 +41,6 @@ class Fitter(object):
         :type: `int`
         """
         return self.dm.n_levels
-
-    @property
-    def sigma(self):
-        return self.dm.sigma
 
     @property
     def scales(self):
@@ -235,8 +227,6 @@ class Fitter(object):
         # initial_shape
         image = image.rescale_to_reference_shape(self.reference_shape,
                                                  group='initial_shape')
-        if self.sigma:
-            image.pixels = fsmooth(image.pixels, self.sigma)
 
         # obtain image representation
         from copy import deepcopy
