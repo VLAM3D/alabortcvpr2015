@@ -4,10 +4,11 @@ from numpy.fft import fft2, ifft2, ifftshift
 from scipy.stats import multivariate_normal
 
 from menpo.shape import PointDirectedGraph
+from menpo.feature import ndfeature
 
 
 def pad(pixels, ext_shape, boundary='constant'):
-    _, h, w = pixels.shape
+    h, w = pixels.shape[-2:]
 
     h_margin = (ext_shape[0] - h) // 2
     w_margin = (ext_shape[1] - w) // 2
@@ -20,13 +21,17 @@ def pad(pixels, ext_shape, boundary='constant'):
     if w + 2 * w_margin < ext_shape[1]:
         w_margin += 1
 
-    pad_width = ((0, 0), (h_margin, h_margin2), (w_margin, w_margin2))
+    pad_width = []
+    for _ in pixels.shape[:-2]:
+        pad_width.append((0, 0))
+    pad_width += [(h_margin, h_margin2), (w_margin, w_margin2)]
+    pad_width = tuple(pad_width)
 
     return np.lib.pad(pixels, pad_width, mode=boundary)
 
 
 def crop(pixels, shape):
-    _, h, w = pixels.shape
+    h, w = pixels.shape[-2:]
 
     h_margin = (h - shape[0]) // 2
     w_margin = (w - shape[1]) // 2
@@ -34,7 +39,7 @@ def crop(pixels, shape):
     h_corrector = 1 if np.remainder(h - shape[0], 2) != 0 else 0
     w_corrector = 1 if np.remainder(w - shape[1], 2) != 0 else 0
 
-    return pixels[:,
+    return pixels[...,
                   h_margin + h_corrector:-h_margin,
                   w_margin + w_corrector:-w_margin]
 
@@ -169,6 +174,15 @@ def generate_gaussian_response(shape, cov):
     mvn = multivariate_normal(mean=np.zeros(2), cov=cov)
     grid = build_grid(shape)
     return mvn.pdf(grid)[None]
+
+
+@ndfeature
+def generate_response(z, f, normalize=normalizenorm_vec,
+                      boundary='constant', axis=0):
+    if normalize is not None:
+        z = normalize(z)
+    response = np.sum(fast2dconv(z, f, boundary=boundary), axis=axis)
+    return np.expand_dims(response, axis=axis)
 
 
 def generate_bounding_box(target_centre, target_size):
