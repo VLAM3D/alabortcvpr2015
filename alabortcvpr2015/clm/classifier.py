@@ -1,90 +1,79 @@
 from __future__ import division
+
 import numpy as np
-from numpy.fft import fft2, ifft2
-from scipy.signal import cosine
+from numpy.fft import fft2, fftshift
+
 from sklearn import svm
 from sklearn import linear_model
 
+from menpo.image import Image
 
-class MCF(object):
+from alabortcvpr2015.correlationfilters import (
+    learn_mccf, normalizenorm_vec, generate_response)
+
+
+class CF(object):
     r"""
-    Multi-channel Correlation Filter
+    Correlation Filter
     """
-    def __init__(self, X, Y, l=0, cosine_mask=False):
+    def __init__(self, samples, response, learn_filter=learn_mccf, l=0.01,
+                 normalize=normalizenorm_vec, mask=True, boundary='constant'):
 
-        if (X[0].shape[0],) + X[0].shape[-2:] != (len(Y),) + Y[0].shape:
-            raise ValueError('')
+        self.normalize = normalize
+        self.boundary = boundary
 
-        n_offsets, n_channels, height, width = X[0].shape
+        n_samples = len(samples)
+        k, h, w = samples[0].shape
 
-        self._cosine_mask = 1
-        if cosine_mask:
-            self._cosine_mask = np.sum(np.meshgrid(cosine(height),
-                                                   cosine(width)), axis=0)
+        if mask:
+            cy = np.hanning(h)
+            cx = np.hanning(w)
+            self.cosine_mask = cy[..., None].dot(cx[None, ...])
 
-        X_hat = self._compute_fft2s(X)
-        Y_hat = self._compute_fft2s(Y)
+        X = np.empty((n_samples, k, h, w))
+        for j, s in enumerate(samples):
+            if self.normalize is not None:
+                s = self.normalize(s)
+            if mask is not None:
+                s = self.cosine_mask * s
+            X[j] = s
 
-        self.f = np.zeros((n_channels, height, width), dtype=np.complex64)
-        for j in xrange(height):
-            for k in xrange(width):
-                H_hat = np.zeros((n_channels, n_channels), dtype=np.complex64)
-                J_hat = np.zeros((n_channels,), dtype=np.complex64)
-                for x_hat in X_hat:
-                    for o, y_hat in enumerate(Y_hat):
-                        x_hat_ij = x_hat[o, :, j, k][:]
-                        H_hat += np.conj(x_hat_ij[..., None]).dot(
-                            x_hat_ij[None, ...])
-                        J_hat += np.conj(x_hat_ij) * y_hat[j, k]
-                H_hat += l * np.eye(H_hat.shape[0])
-                self.f[..., j, k] = np.linalg.solve(H_hat, J_hat)
+        self._filter, _, _ = learn_filter(X, response, l=l, boundary=boundary)
 
-    def _compute_fft2s(self, X):
-        X_hat = []
-        for x in X:
-            x_hat = np.require(fft2(self._cosine_mask * x),
-                               dtype=np.complex64)
-            X_hat.append(x_hat)
-        return X_hat
+    @property
+    def spatial_filter(self):
+        return Image(self._filter[:, ::-1, ::-1])
 
-    def __call__(self, x):
-        return np.real(
-            ifft2(self.f * np.require(fft2(self._cosine_mask * x),
-                                      dtype=np.complex64)))
+    @property
+    def frequency_filter_abs(self):
+        return Image(np.abs(fftshift(fft2(self._filter[:, ::-1, ::-1]))))
+
+    def predict(self, z):
+        return generate_response(z, self._filter, normalize=self.normalize,
+                                 boundary=self.boundary)
 
 
-class MultipleMCF(object):
+class CFEnsemble(object):
     r"""
-    Multiple of Multi-channel Correlation Filter
+    Ensemble of Correlation Filters
     """
-    def __init__(self, clfs):
+    def __init__(self, cfs):
 
-        self._cosine_mask = clfs[0]._cosine_mask
+        self.normalize = cfs[0].normalize
+        self.boundary = cfs[0].boundary
+
+        k, h, w = cfs[0]._filter.shape
+        n_filters = len(cfs)
 
         # concatenate all filters
-        n_channels, height, width = clfs[0].f.shape
-        n_landmarks = len(clfs)
-        self.F = np.zeros((n_landmarks, n_channels, height, width),
-                          dtype=np.complex64)
-        for j, clf in enumerate(clfs):
-            self.F[j, ...] = clf.f
+        self._filter_ensemble = np.empty((n_filters, k, h, w))
+        for j, cf in enumerate(cfs):
+            self._filter_ensemble[j, ...] = cf._filter
 
-    def __call__(self, parts_image):
-
-        # compute responses
-        parts_response = np.sum(np.real(ifft2(
-            self.F * np.require(fft2(self._cosine_mask *
-                                     parts_image.pixels[:, 0, :, ...]),
-                                dtype=np.complex64))), axis=-3)
-
-        # normalize
-        min_parts_response = np.min(parts_response,
-                                    axis=(-2, -1))[..., None, None]
-        parts_response -= min_parts_response
-        parts_response /= np.max(parts_response,
-                                 axis=(-2, -1))[..., None, None]
-
-        return parts_response
+    def predict(self, z):
+        return generate_response(z, self._filter_ensemble,
+                                 normalize=self.normalize,
+                                 boundary=self.boundary, axis=1)
 
 
 class LinearSVMLR(object):

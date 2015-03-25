@@ -3,28 +3,19 @@ import abc
 
 import numpy as np
 
-from menpofast.utils import build_parts_image
-
-from menpofit.base import build_sampling_grid
-
 from alabortcvpr2015.clm.result import CLMAlgorithmResult
-
+from alabortcvpr2015.correlationfilters.utils import build_grid
 
 multivariate_normal = None  # expensive, from scipy.stats
 
 
-# Abstract Interface for CLM Algorithms ---------------------------------------
-
 class CLMAlgorithm(object):
 
-    __metaclass__ = abc.ABCMeta
+    def __init__(self, clf_ensemble, search_shape, pdm, scale=10,
+                 factor=100, eps=10**-5):
 
-    def __init__(self, multiple_clf, parts_shape, normalize_parts,
-                 pdm, scale=10, factor=100, eps=10**-5):
-
-        self.multiple_clf = multiple_clf
-        self.parts_shape = parts_shape
-        self.normalize_parts = normalize_parts
+        self.clf_ensemble = clf_ensemble
+        self.search_shape = search_shape
         self.transform = pdm
         self.eps = eps
         self.scale = scale
@@ -38,7 +29,8 @@ class CLMAlgorithm(object):
         pass
 
     @abc.abstractmethod
-    def run(self, image, initial_shape, max_iters=20, gt_shape=None, **kwargs):
+    def run(self, image, initial_shape, max_iters=20, gt_shape=None,
+            map_inference=False):
         pass
 
 
@@ -46,61 +38,69 @@ class CLMAlgorithm(object):
 
 class RLMS(CLMAlgorithm):
     r"""
-    Regularized Landmark Mean-Shift
+    Regularized Landmark Mean-Shift (RLMS)
     """
-
     def _precompute(self):
-
+        r"""
+        Pre-compute state for RLMS algorithm
+        """
+        # import multivariate normal distribution from scipy
         global multivariate_normal
         if multivariate_normal is None:
             from scipy.stats import multivariate_normal  # expensive
 
         # build sampling grid associated to patch shape
-        self._sampling_grid = build_sampling_grid(self.parts_shape)
-        up_sampled_shape = self.factor * (np.asarray(self.parts_shape) + 1)
-        self._up_sampled_grid = build_sampling_grid(up_sampled_shape)
-        self.offset = np.mgrid[self.factor:up_sampled_shape[0]:self.factor,
-                               self.factor:up_sampled_shape[1]:self.factor]
+        self.grid = build_grid(self.search_shape)
+        upsampled_shape = self.factor * (np.asarray(self.search_shape) + 1)
+        self.upsampled_grid = build_grid(upsampled_shape)
+        self.offset = np.mgrid[self.factor:upsampled_shape[0]:self.factor,
+                               self.factor:upsampled_shape[1]:self.factor]
         self.offset = self.offset.swapaxes(0, 2).swapaxes(0, 1)
 
         # set rho2
-        self._rho2 = self.transform.model.noise_variance()
+        self.rho2 = self.transform.model.noise_variance()
 
         # compute Gaussian-KDE grid
         mean = np.zeros(self.transform.n_dims)
-        covariance = self.scale * self._rho2
-        mvn = multivariate_normal(mean=mean, cov=covariance)
-        self._kernel_grid = mvn.pdf(self._up_sampled_grid)
-        n_parts = self.transform.model.mean().n_points
-        self._kernel_grids = np.empty((n_parts,) + self.parts_shape)
+        cov = self.scale * self.rho2
+        mvn = multivariate_normal(mean=mean, cov=cov)
+        self.kernel_grid = mvn.pdf(self.upsampled_grid)
+        n_landmarks = self.transform.model.mean().n_points
+        self.kernel_grids = np.empty((n_landmarks, 1) + self.search_shape)
+
+        # compute shape model prior
+        sim_prior = np.zeros((4,))
+        pdm_prior = self.rho2 / self.transform.model.eigenvalues
+        self.rho2_inv_L = np.hstack((sim_prior, pdm_prior))
 
         # compute Jacobian
-        j = np.rollaxis(self.transform.d_dp(None), -1, 1)
-        self._j = j.reshape((-1, j.shape[-1]))
+        J = np.rollaxis(self.transform.d_dp(None), -1, 1)
+        self.J = J.reshape((-1, J.shape[-1]))
+        # compute inverse Hessian
+        self.JJ = self.J.T.dot(self.J)
+        # compute Jacobian pseudo-inverse
+        self.pinv_J = np.linalg.solve(self.JJ, self.J.T)
+        self.inv_JJ_prior = np.linalg.inv(self.JJ + np.diag(self.rho2_inv_L))
 
-        # set Prior
-        sim_prior = np.zeros((4,))
-        pdm_prior = self._rho2 / self.transform.model.eigenvalues
-        self._j_prior = np.hstack((sim_prior, pdm_prior))
-
-        # compute Hessian inverse
-        self._h = self._j.T.dot(self._j)
-        self._inv_h = np.linalg.inv(self._h)
-        self._inv_h_prior = np.linalg.inv(self._h + np.diag(self._j_prior))
-
-    def run(self, image, initial_shape, gt_shape=None, max_iters=20,
-            prior=False):
-
+    def run(self, image, initial_shape, max_iters=20, gt_shape=None,
+            map_inference=False):
+        r"""
+        Run RLMS algorithm
+        """
         # initialize transform
         self.transform.set_target(initial_shape)
-        shape_parameters = [self.transform.as_vector()]
+        p_list = [self.transform.as_vector()]
 
-        for _ in xrange(max_iters):
+        # initialize iteration counter and epsilon
+        k = 0
+        eps = np.Inf
+
+        # Compositional Gauss-Newton loop
+        while k < max_iters and eps > self.eps:
 
             target = self.transform.target
             # get all (x, y) pairs being considered
-            xys = (target.points[:, None, None, ...] +
-                   self._sampling_grid)
+            xys = (target.points[:, None, None, ...] + self.grid)
 
             diff = np.require(
                 np.round(-np.round(target.points) + target.points,
@@ -109,47 +109,55 @@ class RLMS(CLMAlgorithm):
 
             offsets = diff[:, None, None, :] + self.offset
             for j, o in enumerate(offsets):
-                self._kernel_grids[j, ...] = self._kernel_grid[o[..., 0],
-                                                               o[..., 1]]
+                self.kernel_grids[j, ...] = self.kernel_grid[o[..., 0],
+                                                             o[..., 1]]
 
             # build parts image
-            parts_image = build_parts_image(
-                image, target, parts_shape=self.parts_shape,
-                normalize_parts=self.normalize_parts)
+            parts_image = image.extract_patches(
+                target, patch_size=self.search_shape, as_single_array=True)
+            parts_image = parts_image[:, 0, ...]
 
             # compute parts response
-            parts_response = self.multiple_clf(parts_image)
+            parts_response = self.clf_ensemble.predict(parts_image)
+
+            # normalize
+            min_parts_response = np.min(parts_response,
+                                        axis=(-2, -1))[..., None, None]
+            parts_response -= min_parts_response
+            parts_response /= np.max(parts_response,
+                                     axis=(-2, -1))[..., None, None]
 
             # compute parts kernel
-            parts_kernel = parts_response * self._kernel_grids
+            parts_kernel = parts_response * self.kernel_grids
             parts_kernel /= np.sum(
                 parts_kernel, axis=(-2, -1))[..., None, None]
 
             # compute mean shift target
-            mean_shift_target = np.sum(parts_kernel[..., None] * xys,
+            mean_shift_target = np.sum(parts_kernel[:, 0, ..., None] * xys,
                                        axis=(-3, -2))
 
             # compute (shape) error term
             e = mean_shift_target.ravel() - target.as_vector()
 
-            # compute gauss-newton parameter updates
-            if prior:
-                dp = -self._inv_h_prior.dot(
-                    self._j_prior * self.transform.as_vector() -
-                    self._j.T.dot(e))
+            # solve for increments on the shape parameters
+            if map_inference:
+                Je = (self.rho2_inv_L * self.transform.as_vector() -
+                      self.J.T.dot(e))
+                dp = -self.inv_JJ_prior.dot(Je)
             else:
-                dp = self._inv_h.dot(self._j.T.dot(e))
+                dp = self.pinv_J.dot(e)
 
             # update pdm
+            s_k = self.transform.target.points
             self.transform.from_vector_inplace(self.transform.as_vector() + dp)
-            shape_parameters.append(self.transform.as_vector())
+            p_list.append(self.transform.as_vector())
 
             # test convergence
-            error = np.abs(np.linalg.norm(
-                target.points - self.transform.target.points))
-            if error < self.eps:
-                break
+            eps = np.abs(np.linalg.norm(s_k - self.transform.target.points))
 
-        # return CLM algorithm result
-        return CLMAlgorithmResult(image, self, shape_parameters,
+            # increase iteration counter
+            k += 1
+
+        # return algorithm result
+        return CLMAlgorithmResult(image, self, p_list,
                                   gt_shape=gt_shape)

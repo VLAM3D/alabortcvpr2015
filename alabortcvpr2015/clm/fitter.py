@@ -6,11 +6,10 @@ from alabortcvpr2015.pdm import OrthoPDM
 from .algorithm import RLMS
 
 
-# Concrete Implementations of AAM Fitters -------------------------------------
-
 class CLMFitter(Fitter):
 
-    def __init__(self, clm, algorithm_cls=RLMS, n_shape=None, **kwargs):
+    def __init__(self, clm, algorithm_cls=RLMS, n_shape=None,
+                 search_shape=(17, 17), **kwargs):
 
         super(CLMFitter, self).__init__()
 
@@ -23,8 +22,6 @@ class CLMFitter(Fitter):
 
             pdm = OrthoPDM(sm, sigma2=sm.noise_variance())
 
-            algorithm = algorithm_cls(clf, self.dm.parts_shape,
-                                      self.dm.normalize_parts,
-                                      pdm, **kwargs)
+            algorithm = algorithm_cls(clf, search_shape, pdm, **kwargs)
 
             self._algorithms.append(algorithm)
