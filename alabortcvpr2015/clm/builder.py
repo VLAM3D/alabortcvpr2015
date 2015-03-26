@@ -7,7 +7,7 @@ from menpo.visualize import print_dynamic, progress_bar_str
 from menpofit.builder import (
     normalization_wrt_reference_shape, build_shape_model)
 
-from alabortcvpr2015.correlationfilters import generate_gaussian_response
+from alabortcvpr2015.correlationfilter import generate_gaussian_response
 from alabortcvpr2015.utils import (
     compute_features, scale_images, extract_patches)
 

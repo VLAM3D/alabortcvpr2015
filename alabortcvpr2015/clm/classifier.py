@@ -8,7 +8,7 @@ from sklearn import linear_model
 
 from menpo.image import Image
 
-from alabortcvpr2015.correlationfilters import (
+from alabortcvpr2015.correlationfilter import (
     learn_mccf, normalizenorm_vec, generate_response)
 
 

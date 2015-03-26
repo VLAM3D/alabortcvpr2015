@@ -4,7 +4,7 @@ import abc
 import numpy as np
 
 from alabortcvpr2015.clm.result import CLMAlgorithmResult
-from alabortcvpr2015.correlationfilters.utils import build_grid
+from alabortcvpr2015.correlationfilter.utils import build_grid
 
 multivariate_normal = None  # expensive, from scipy.stats
 
