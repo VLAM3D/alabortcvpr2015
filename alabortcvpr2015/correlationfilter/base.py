@@ -255,14 +255,14 @@ def learn_zamosse(X, y, l=0.01, boundary='constant', crop_filter=True,
         training images.
     """
     # learn mosse filter
-    h, T, p = learn_mosse(X, y, l=l, boundary=boundary, crop_filter=False)
+    h, p, T = learn_mosse(X, y, l=l, boundary=boundary, crop_filter=False)
     T += l
     y_shape = y.shape[-2:]
 
     # initialize v and w
     t = 0
     err = np.inf
-    v = prox(h)
+    v = prox(h, y_shape)
     w = v
 
     while t < max_iters and err > eps:
@@ -271,7 +271,7 @@ def learn_zamosse(X, y, l=0.01, boundary='constant', crop_filter=True,
 
         # proximal gradient step
         nv = prox(w - n * (T * w - p), y_shape)
-        w = nv + ((t-1) / (t+2)) * (nv - v)
+        w = nv + (t / (t+3)) * (nv - v)
         v = nv
 
         # test convergence
@@ -289,7 +289,7 @@ def learn_zamosse(X, y, l=0.01, boundary='constant', crop_filter=True,
 def prox(h, shape):
     h = fft2(h)
     fft_h = zero_tail(h, shape)
-    return ifft2(fft_h)
+    return np.real(ifft2(fft_h))
 
 
 def zero_tail(h, shape):
