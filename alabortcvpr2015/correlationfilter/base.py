@@ -6,7 +6,7 @@ from scipy.sparse.linalg import spsolve
 from .utils import pad, crop, fast2dconv
 
 
-def learn_mosse(X, y, l=0.01, boundary='constant'):
+def learn_mosse(X, y, l=0.01, boundary='constant', crop_filter=True):
     r"""
     Minimum Output Sum od Squared Errors (MOSSE) filter.
 
@@ -20,6 +20,10 @@ def learn_mosse(X, y, l=0.01, boundary='constant'):
         Regularization parameter.
     boundary: str {`constant`, `symmetric`}, optional
         Determines how the image is padded.
+    crop_filter: `bool`, optional
+        If ``True``, the shape of the MOSSE filter is the same as the shape
+        of the desired response. If ``False``, the filter's shape is equal to:
+        ``X[0].shape + y.shape - 1``
 
     Returns
     -------
@@ -68,10 +72,12 @@ def learn_mosse(X, y, l=0.01, boundary='constant'):
     # reshape extended filter to extended image shape
     fft_ext_f = fft_ext_f.reshape((k, ext_h, ext_w))
 
-    # compute filter inverse fft
-    ext_f = np.real(ifftshift(ifft2(fft_ext_f), axes=(-2, -1)))
-    # crop extended filter to match desired response shape
-    f = crop(ext_f, y_shape)
+    # compute extended filter inverse fft
+    f = np.real(ifftshift(ifft2(fft_ext_f), axes=(-2, -1)))
+
+    if crop_filter:
+        # crop extended filter to match desired response shape
+        f = crop(f, y_shape)
 
     return f, sXY, sXX
 
@@ -217,8 +223,8 @@ def learn_deep_cf(X, y, learn_cf=learn_mccf, n_levels=5, l=0.1,
     return df, As, Bs
 
 
-def learn_zamosse(X, y, l=0.01, boundary='constant', max_iters=1000,
-                  eps=10**-5):
+def learn_zamosse(X, y, l=0.01, boundary='constant', crop_filter=True,
+                  max_iters=1000, eps=10**-5):
     r"""
     Zero-Aliasing MOSSE Filter (ZAMOSSE) filter.
 
@@ -232,6 +238,15 @@ def learn_zamosse(X, y, l=0.01, boundary='constant', max_iters=1000,
         Regularization parameter.
     boundary: str {`constant`, `symmetric`}, optional
         Determines how the image is padded.
+    crop_filter: `bool`, optional
+        If ``True``, the shape of the MOSSE filter is the same as the shape
+        of the desired response. If ``False``, the filter's shape is equal to:
+        ``X[0].shape + y.shape - 1`
+    max_iters : `int`, optional
+        Maximum number of iteration to be run in case the convergence
+        criteria is not met.
+    eps : `float`, optional
+        Tolerance value determining the convergence of the algorithm.
 
     Returns
     -------
@@ -240,27 +255,44 @@ def learn_zamosse(X, y, l=0.01, boundary='constant', max_iters=1000,
         training images.
     """
     # learn mosse filter
-    h, T, p = learn_mosse(X, y, l=l, boundary=boundary)
+    h, T, p = learn_mosse(X, y, l=l, boundary=boundary, crop_filter=False)
     T += l
+    y_shape = y.shape[-2:]
 
     # initialize v and w
     t = 0
+    err = np.inf
     v = prox(h)
     w = v
 
     while t < max_iters and err > eps:
+        # line search
         n = 1
-        nv = prox(w - n * (T * w - p))
+
+        # proximal gradient step
+        nv = prox(w - n * (T * w - p), y_shape)
         w = nv + ((t-1) / (t+2)) * (nv - v)
         v = nv
 
         # test convergence
         err = 10
-
         # increase iteration counter
         t += 1
 
+    if crop_filter:
+        # crop mosse filter to match desired response shape
+        v = crop(v, y_shape)
+
     return v
 
-def prox(h):
-    fft2(h)
+
+def prox(h, shape):
+    h = fft2(h)
+    fft_h = zero_tail(h, shape)
+    return ifft2(fft_h)
+
+
+def zero_tail(h, shape):
+    ext_shape = h.shape[-2:]
+    h = crop(h, shape)
+    return pad(h, ext_shape)
