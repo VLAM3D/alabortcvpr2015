@@ -1,10 +1,18 @@
 import numpy as np
-from numpy.fft import fft2, ifft2, ifftshift
+from numpy.fft import fft2 as np_fft2, ifft2 as np_ifft2, ifftshift
 
 from scipy.stats import multivariate_normal
 
 from menpo.shape import PointDirectedGraph
 from menpo.feature import ndfeature
+
+
+def fft2(x):
+    return np_fft2(x)
+
+
+def ifft2(x):
+    return np_ifft2(x)
 
 
 def pad(pixels, ext_shape, boundary='constant'):

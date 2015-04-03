@@ -1,9 +1,9 @@
 import numpy as np
-from numpy.fft import fft2, ifft2, ifftshift
+from numpy.fft import ifftshift
 from scipy.sparse import spdiags, eye as speye
 from scipy.sparse.linalg import spsolve
 
-from .utils import pad, crop, fast2dconv
+from .utils import pad, crop, fast2dconv, fft2, ifft2
 
 
 def learn_mosse(X, y, l=0.01, boundary='constant', crop_filter=True):
@@ -260,24 +260,32 @@ def learn_zamosse(X, y, l=0.01, boundary='constant', crop_filter=True,
     y_shape = y.shape[-2:]
 
     # initialize v and w
-    t = 0
+    k = 0
+    t = 1
     err = np.inf
-    v = prox(h, y_shape)
+    v = prox(fft2(h), y_shape)
     w = v
 
-    while t < max_iters and err > eps:
+    while k < max_iters and err > eps:
+        # cost function gradient
+        nabla = T * w.conj() - p
+
         # line search
-        n = 1
+        n = line_search(nabla, w, T, p, y_shape)
 
         # proximal gradient step
-        nv = prox(w - n * (T * w - p), y_shape)
-        w = nv + (t / (t+3)) * (nv - v)
+        nv = prox(w - n * nabla, y_shape)
+        nt = 0.5 * (1 + np.sqrt(1 + 4 * t**2))
+        w = nv + ((t - 1) / nt) * (nv - v)
         v = nv
+        t = nt
 
         # test convergence
         err = 10
         # increase iteration counter
-        t += 1
+        k += 1
+
+    v = np.real(ifft2(v))
 
     if crop_filter:
         # crop mosse filter to match desired response shape
@@ -287,12 +295,38 @@ def learn_zamosse(X, y, l=0.01, boundary='constant', crop_filter=True,
 
 
 def prox(h, shape):
+    h = np.real(ifft2(h))
+    h = zero_tail(h, shape)
     h = fft2(h)
-    fft_h = zero_tail(h, shape)
-    return np.real(ifft2(fft_h))
+    return h
 
 
 def zero_tail(h, shape):
     ext_shape = h.shape[-2:]
     h = crop(h, shape)
     return pad(h, ext_shape)
+
+
+def line_search(nabla, h, T, p, shape):
+    nabla = prox(nabla, shape)
+    nabla_conj = nabla.conj()
+
+    num1 = np.sum(nabla_conj * T * h)
+    num2 = np.sum(nabla_conj * p)
+    den = np.sum(nabla_conj * T * nabla)
+    return (num1 - num2) / den
+
+
+def line_search_backtracking(nabla, h, T, p, shape):
+    nabla = prox(nabla, shape)
+    nabla_conj = nabla.conj()
+
+    num1 = np.sum(nabla_conj * T * h)
+    num2 = np.sum(nabla_conj * p)
+    den = np.sum(nabla_conj * T * nabla)
+    return (num1 - num2) / den
+
+
+def cost_function(h, T, p):
+    h_conj = h.conj()
+    return np.real(np.sum(h_conj * T * h - h_conj * p))
