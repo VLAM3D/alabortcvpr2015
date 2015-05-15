@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/jalabort/alabortcvpr2015.png?label=ready&title=Ready)](https://waffle.io/jalabort/alabortcvpr2015)
 CVPR 2015
 =============
 
