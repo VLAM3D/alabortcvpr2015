@@ -1,4 +1,4 @@
-from __future__ import division
+
 import abc
 
 import numpy as np
@@ -18,9 +18,7 @@ from .result import CLMAlgorithmResult
 multivariate_normal = None  # expensive, from scipy.stats
 
 
-class CLMAlgorithm(object):
-
-    __metaclass__ = abc.ABCMeta
+class CLMAlgorithm(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def _precompute(self, **kwargs):
@@ -97,7 +95,7 @@ class RLMS(CLMAlgorithm):
         self.transform.set_target(initial_shape)
         shape_parameters = [self.transform.as_vector()]
 
-        for _ in xrange(max_iters):
+        for _ in range(max_iters):
 
             target = self.transform.target
             # get all (x, y) pairs being considered

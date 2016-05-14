@@ -1,4 +1,4 @@
-from __future__ import division
+
 
 from alabortcvpr2015.fitter import Fitter
 from alabortcvpr2015.pdm import OrthoPDM
@@ -40,10 +40,10 @@ class CLMFitter(Fitter):
     def _check_scale(self, s):
         scale = []
         if type(s) is int or type(s) is float:
-            for _ in xrange(self.dm.n_levels):
+            for _ in range(self.dm.n_levels):
                 scale.append(s)
         elif len(s) == 1 and self.dm.n_levels > 1:
-            for _ in xrange(self.dm.n_levels):
+            for _ in range(self.dm.n_levels):
                 scale.append(s)
         elif len(s) == self.dm.n_levels:
             scale = s

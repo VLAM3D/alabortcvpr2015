@@ -1,4 +1,4 @@
-from __future__ import division
+
 import abc
 
 import numpy as np
@@ -11,9 +11,7 @@ from .result import AAMAlgorithmResult
 
 # Abstract Interface for AAM Algorithms ---------------------------------------
 
-class AAMAlgorithm(object):
-
-    __metaclass__ = abc.ABCMeta
+class AAMAlgorithm(object, metaclass=abc.ABCMeta):
 
     def __init__(self, aam_interface, appearance_model, transform,
                  eps=10**-5, **kwargs):
@@ -88,7 +86,7 @@ class PIC(AAMAlgorithm):
         masked_m = self.appearance_model.mean().as_vector()[
             self.interface.image_vec_mask]
 
-        for _ in xrange(max_iters):
+        for _ in range(max_iters):
 
             # warp image
             i = self.interface.warp(image)
@@ -149,7 +147,7 @@ class AIC(AAMAlgorithm):
         # masked model mean
         masked_m = m[self.interface.image_vec_mask]
 
-        for _ in xrange(max_iters):
+        for _ in range(max_iters):
 
             # warp image
             i = self.interface.warp(image)
@@ -198,9 +196,7 @@ class AIC(AAMAlgorithm):
 
 # Abstract Interface for AAM interfaces ---------------------------------------
 
-class AAMInterface(object):
-
-    __metaclass__ = abc.ABCMeta
+class AAMInterface(object, metaclass=abc.ABCMeta):
 
     def __init__(self, aam_algorithm):
         self.algorithm = aam_algorithm
@@ -240,7 +236,7 @@ class GlobalAAMInterface(AAMInterface):
 
         if sampling_step is None:
             sampling_step = 1
-        sampling_pattern = xrange(0, n_true_pixels, sampling_step)
+        sampling_pattern = range(0, n_true_pixels, sampling_step)
         sampling_mask[sampling_pattern] = 1
 
         self.image_vec_mask = np.nonzero(np.tile(

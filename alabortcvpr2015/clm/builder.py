@@ -1,4 +1,4 @@
-from __future__ import division
+
 from copy import deepcopy
 import numpy as np
 from scipy.stats import multivariate_normal

@@ -1,4 +1,4 @@
-from __future__ import division
+
 import abc
 import numpy as np
 
@@ -12,9 +12,7 @@ from menpofast.image import MaskedImage
 
 # Abstract Interface for AAM Objects ------------------------------------------
 
-class AAM(object):
-
-    __metaclass__ = abc.ABCMeta
+class AAM(object, metaclass=abc.ABCMeta):
 
     def __getstate__(self):
         import menpofast.feature as menpofast_feature

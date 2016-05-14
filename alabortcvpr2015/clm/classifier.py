@@ -1,4 +1,4 @@
-from __future__ import division
+
 import numpy as np
 from numpy.fft import fft2, ifft2, fftshift
 from sklearn import svm
@@ -36,8 +36,8 @@ class MCF(object):
             Y_hat.append(y_hat)
 
         self.f = np.zeros((n_channels, height, width), dtype=np.complex64)
-        for j in xrange(height):
-            for k in xrange(width):
+        for j in range(height):
+            for k in range(width):
                 H_hat = np.zeros((n_channels, n_channels), dtype=np.complex64)
                 J_hat = np.zeros((n_channels,), dtype=np.complex64)
                 for x_hat in X_hat:

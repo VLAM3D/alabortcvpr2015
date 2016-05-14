@@ -1,4 +1,4 @@
-from __future__ import division
+
 import abc
 import menpo.io as mio
 
@@ -12,9 +12,7 @@ from menpofast.utils import convert_from_menpo
 
 # Abstract Interface for Results ----------------------------------------------
 
-class Result(object):
-
-    __metaclass__ = abc.ABCMeta
+class Result(object, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def n_iters(self):

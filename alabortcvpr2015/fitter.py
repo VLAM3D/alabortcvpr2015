@@ -1,4 +1,4 @@
-from __future__ import division
+
 import abc
 
 import numpy as np
@@ -14,9 +14,7 @@ from .result import FitterResult
 
 # Abstract Interface for Fitters ------------------------------------------
 
-class Fitter(object):
-
-    __metaclass__ = abc.ABCMeta
+class Fitter(object, metaclass=abc.ABCMeta):
 
     @property
     def reference_shape(self):
