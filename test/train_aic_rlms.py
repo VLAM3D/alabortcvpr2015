@@ -11,6 +11,7 @@ from alabortcvpr2015.unified import GlobalUnifiedFitter
 import argparse
 import pickle
 import numpy as np
+import csv
 
 def load_test_data(testset):
     test_images = []
@@ -25,10 +26,10 @@ def load_test_data(testset):
 
     return test_images
 
-def train_aic_rmls(trainset, output):
+def train_aic_rlms(trainset, output):
     training_images = []
     # load landmarked images
-    for i in mio.import_images(Path(trainset) / '*', verbose=True, max_images = None):
+    for i in mio.import_images(Path(trainset) / '*', verbose=True, max_images=64):
         # crop image
         i = convert_from_menpo(i)
         i.rescale_landmarks_to_diagonal_range(200)
@@ -68,13 +69,25 @@ def test_fitter(fitter, test_images):
 
 if __name__ == "__main__" :
     # Example:
-    # C:\face_databases\lfpw C:\face_databases\lfpw_unified.pickle
+    # C:\face_databases\lfpw\trainset  C:\face_databases\afw C:\face_databases\lfpw_unified.pickle
     parser = argparse.ArgumentParser(description='Train basic AAM model.')
     parser.add_argument('trainset', type=str, help='Path to training images folder')
     parser.add_argument('testset', type=str, help='Path to testing images folder')
-    parser.add_argument('output', type=str, help='File path where write the AAM')
+    parser.add_argument('output', type=str, help='File path where to write the fitter object')
+    parser.add_argument('--csv_results', type=str, help='File path where to write the results in CSV format')
 
     args = parser.parse_args()
-    fitter = train_aic_rmls(args.trainset, args.output)
+    fitter = train_aic_rlms(args.trainset, args.output)
+    
+    with open(args.output, 'wb') as f:
+        # Pickle the 'data' dictionary using the highest protocol available.
+        pickle.dump(fitter, f, pickle.HIGHEST_PROTOCOL)
+
     test_images = load_test_data(args.testset)
-    test_fitter(fitter, test_images)
+    results = test_fitter(fitter, test_images)
+
+    if args.csv_results is not None:
+        with open(args.csv_results, 'w', newline='') as csvfile:
+            csv_writer = csv.writer(csvfile)
+            csv_writer.writerow(['Initial Error', 'Final Error'])
+            csv_writer.writerows([(f.initial_error(), f.final_error()) for f in results])
