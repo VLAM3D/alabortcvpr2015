@@ -8,9 +8,7 @@ from menpo.model import PCAModel
 from menpo.shape import mean_pointcloud
 from menpo.visualize import print_dynamic, progress_bar_str
 
-from menpofast.utils import build_parts_image
-
-from menpofit.base import build_sampling_grid
+from alabortcvpr2015.unified.utils import build_parts_image, build_sampling_grid
 
 from alabortcvpr2015.utils import fsmooth
 
@@ -162,7 +160,7 @@ class CLMBuilder(object):
             if verbose:
                 print_dynamic('- Normalizing images size: {}'.format(
                     progress_bar_str((c + 1.) / len(images), show_bar=False)))
-            i = i.rescale_to_reference_shape(ref_shape, group=group,
+            i = rescale_to_reference_shape(i, ref_shape, group=group,
                                              label=label)
             if self.sigma:
                 i.pixels = fsmooth(i.pixels, self.sigma)

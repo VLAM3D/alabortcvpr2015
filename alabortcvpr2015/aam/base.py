@@ -7,7 +7,7 @@ from serializablecallable import SerializableCallable
 from menpo.shape import TriMesh
 from menpo.transform import Translation
 
-from menpofast.image import MaskedImage
+from menpo.image import MaskedImage
 
 
 # Abstract Interface for AAM Objects ------------------------------------------
@@ -15,11 +15,11 @@ from menpofast.image import MaskedImage
 class AAM(object, metaclass=abc.ABCMeta):
 
     def __getstate__(self):
-        import menpofast.feature as menpofast_feature
+        import menpo.feature as menpo_feature
         d = self.__dict__.copy()
 
         features = d.pop('features')
-        d['features'] = SerializableCallable(features, [menpofast_feature])
+        d['features'] = SerializableCallable(features, [menpo_feature])
 
         return d
 

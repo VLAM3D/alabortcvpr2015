@@ -1,8 +1,8 @@
 from pathlib import Path
 import menpo.io as mio
-from menpofast.utils import convert_from_menpo
-from menpo.landmark import labeller, ibug_face_66
-from menpofast.feature import no_op, fast_dsift, fast_daisy
+from alabortcvpr2015.unified.utils import convert_from_menpo
+from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66
+from menpo.feature import no_op, fast_dsift
 from alabortcvpr2015.aam import PartsAAMBuilder
 from alabortcvpr2015.unified import GlobalUnifiedBuilder
 from alabortcvpr2015.clm.classifier import MCF, LinearSVMLR
@@ -18,8 +18,8 @@ def load_test_data(testset, n_test_imgs=None):
     for i in mio.import_images(Path(testset), verbose=True, max_images=n_test_imgs):    
         # convert the image from menpo Image to menpofast Image (channels at front)
         i = convert_from_menpo(i)    
-        i.crop_to_landmarks_proportion_inplace(0.5)
-        labeller(i, 'PTS', ibug_face_66)
+        i = i.crop_to_landmarks_proportion(0.5)
+        labeller(i, 'PTS', face_ibug_68_to_face_ibug_66)
         if i.n_channels == 3:
             i = i.as_greyscale(mode='average')
         test_images.append(i)
@@ -32,9 +32,8 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
     for i in mio.import_images(Path(trainset) / '*', verbose=True, max_images=n_train_imgs):
         # crop image
         i = convert_from_menpo(i)
-        i.rescale_landmarks_to_diagonal_range(200)
-        i.crop_to_landmarks_proportion_inplace(0.5)
-        labeller(i, 'PTS', ibug_face_66)
+        i = i.crop_to_landmarks_proportion(0.5)
+        labeller(i, 'PTS', face_ibug_68_to_face_ibug_66)
         # convert it to greyscale if needed
         if i.n_channels == 3:
             i = i.as_greyscale(mode='average')
@@ -48,7 +47,7 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
                                    classifier=MCF, offsets=offsets, normalize_parts=False, 
                                    covariance=2, scale_shapes=False, scales=(1, .5),  max_appearance_components = 50)
 
-    unified = builder.build(training_images, group='ibug_face_66', verbose=True)
+    unified = builder.build(training_images, group='face_ibug_66', verbose=True)
     fitter = GlobalUnifiedFitter(unified, n_shape=[3, 12], n_appearance=[25, 50])
 
     return fitter

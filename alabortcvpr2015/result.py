@@ -4,10 +4,10 @@ import menpo.io as mio
 
 from menpo.transform import Scale
 
-from menpofit.fittingresult import compute_error
+from menpofit.error import euclidean_bb_normalised_error
 
-from menpofast.image import Image
-from menpofast.utils import convert_from_menpo
+from menpo.image import Image
+from alabortcvpr2015.unified.utils import convert_from_menpo
 
 
 # Abstract Interface for Results ----------------------------------------------
@@ -113,7 +113,7 @@ class Result(object, metaclass=abc.ABCMeta):
             The errors at each iteration of the fitting process.
         """
         if self.gt_shape is not None:
-            return [compute_error(t, self.gt_shape, error_type)
+            return [euclidean_bb_normalised_error(t, self.gt_shape, error_type)
                     for t in self.shapes()]
         else:
             raise ValueError('Ground truth has not been set, errors cannot '
@@ -135,7 +135,7 @@ class Result(object, metaclass=abc.ABCMeta):
             The final error at the end of the fitting procedure.
         """
         if self.gt_shape is not None:
-            return compute_error(self.final_shape, self.gt_shape, error_type)
+            return euclidean_bb_normalised_error(self.final_shape, self.gt_shape, error_type)
         else:
             raise ValueError('Ground truth has not been set, final error '
                              'cannot be computed')
@@ -156,7 +156,7 @@ class Result(object, metaclass=abc.ABCMeta):
             The initial error at the start of the fitting procedure.
         """
         if self.gt_shape is not None:
-            return compute_error(self.initial_shape, self.gt_shape, error_type)
+            return euclidean_bb_normalised_error(self.initial_shape, self.gt_shape, error_type)
         else:
             raise ValueError('Ground truth has not been set, final error '
                              'cannot be computed')

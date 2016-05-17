@@ -2,8 +2,8 @@
 
 from serializablecallable import SerializableCallable
 
-from menpofast.image import Image
-from menpofast.utils import build_parts_image
+from menpo.image import Image
+from alabortcvpr2015.unified.utils import build_parts_image
 
 from .classifier import MultipleMCF
 

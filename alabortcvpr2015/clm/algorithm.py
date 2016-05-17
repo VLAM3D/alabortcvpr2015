@@ -4,11 +4,9 @@ import abc
 import numpy as np
 from numpy.fft import fft2, ifft2, fftshift
 
-from menpofast.feature import gradient as fast_gradient
-from menpofast.utils import build_parts_image
-from menpofast.image import Image
-
-from menpofit.base import build_sampling_grid
+from menpo.feature import gradient as fast_gradient
+from alabortcvpr2015.unified.utils import build_parts_image, build_sampling_grid
+from menpo.image import Image
 
 from alabortcvpr2015.aam.algorithm import PartsAAMInterface
 

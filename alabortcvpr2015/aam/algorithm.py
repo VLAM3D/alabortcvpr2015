@@ -3,11 +3,27 @@ import abc
 
 import numpy as np
 
-from menpofast.feature import gradient as fast_gradient
-from menpofast.utils import build_parts_image
+from menpo.feature import gradient as fast_gradient
+from menpo.image import extract_patches
 
 from .result import AAMAlgorithmResult
 
+def build_parts_image(image, centres, parts_shape, offsets=np.array([[0, 0]]),
+                      normalize_parts=False):
+
+    # extract patches
+    parts = extract_patches(image.pixels, np.round(centres.points),
+                            np.array(parts_shape), offsets)
+
+    # build parts image
+    # img.pixels: n_centres x n_offsets x n_channels x height x width
+    img = Image(parts)
+
+    if normalize_parts:
+        # normalize parts if required
+        img.normalize_norm_inplace(mode='per_channel')
+
+    return img
 
 # Abstract Interface for AAM Algorithms ---------------------------------------
 

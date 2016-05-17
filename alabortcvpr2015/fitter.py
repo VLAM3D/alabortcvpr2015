@@ -3,10 +3,9 @@ import abc
 
 import numpy as np
 
-from menpo.transform import Scale, AlignmentAffine
+from alabortcvpr2015.unified.utils import noisy_align, align_shape_with_bb, rescale_to_reference_shape
 
-from menpofit.base import noisy_align
-from menpofit.fitter import align_shape_with_bb
+from menpo.transform import Scale, AlignmentAffine
 
 from .utils import fsmooth
 from .result import FitterResult
@@ -231,7 +230,7 @@ class Fitter(object, metaclass=abc.ABCMeta):
 
         # rescale image wrt the scale factor between reference_shape and
         # initial_shape
-        image = image.rescale_to_reference_shape(self.reference_shape,
+        image = rescale_to_reference_shape(image, self.reference_shape,
                                                  group='initial_shape')
         if self.sigma:
             image.pixels = fsmooth(image.pixels, self.sigma)
