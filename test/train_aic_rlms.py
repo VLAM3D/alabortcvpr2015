@@ -5,7 +5,7 @@ from menpo.landmark import labeller, ibug_face_66
 from menpofast.feature import no_op, fast_dsift, fast_daisy
 from alabortcvpr2015.aam import PartsAAMBuilder
 from alabortcvpr2015.unified import GlobalUnifiedBuilder
-from alabortcvpr2015.clm.classifier import MCF
+from alabortcvpr2015.clm.classifier import MCF, LinearSVMLR
 from alabortcvpr2015.aam import PartsAAMFitter, AIC, PIC
 from alabortcvpr2015.unified import GlobalUnifiedFitter 
 import argparse
@@ -13,9 +13,9 @@ import pickle
 import numpy as np
 import csv
 
-def load_test_data(testset):
+def load_test_data(testset, n_test_imgs=None):
     test_images = []
-    for i in mio.import_images(Path(testset), verbose=True, max_images=16):    
+    for i in mio.import_images(Path(testset), verbose=True, max_images=n_test_imgs):    
         # convert the image from menpo Image to menpofast Image (channels at front)
         i = convert_from_menpo(i)    
         i.crop_to_landmarks_proportion_inplace(0.5)
@@ -26,10 +26,10 @@ def load_test_data(testset):
 
     return test_images
 
-def train_aic_rlms(trainset, output):
+def train_aic_rlms(trainset, output, n_train_imgs=None):
     training_images = []
     # load landmarked images
-    for i in mio.import_images(Path(trainset) / '*', verbose=True, max_images=64):
+    for i in mio.import_images(Path(trainset) / '*', verbose=True, max_images=n_train_imgs):
         # crop image
         i = convert_from_menpo(i)
         i.rescale_landmarks_to_diagonal_range(200)
@@ -77,13 +77,13 @@ if __name__ == "__main__" :
     parser.add_argument('--csv_results', type=str, help='File path where to write the results in CSV format')
 
     args = parser.parse_args()
-    fitter = train_aic_rlms(args.trainset, args.output)
+    fitter = train_aic_rlms(args.trainset, args.output, 100)
     
     with open(args.output, 'wb') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(fitter, f, pickle.HIGHEST_PROTOCOL)
 
-    test_images = load_test_data(args.testset)
+    test_images = load_test_data(args.testset, 16)
     results = test_fitter(fitter, test_images)
 
     if args.csv_results is not None:
