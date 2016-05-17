@@ -2,7 +2,7 @@ from pathlib import Path
 import menpo.io as mio
 from alabortcvpr2015.unified.utils import convert_from_menpo
 from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66
-from menpo.feature import no_op, fast_dsift
+from menpo.feature import no_op, dsift
 from alabortcvpr2015.aam import PartsAAMBuilder
 from alabortcvpr2015.unified import GlobalUnifiedBuilder
 from alabortcvpr2015.clm.classifier import MCF, LinearSVMLR
@@ -12,6 +12,11 @@ import argparse
 import pickle
 import numpy as np
 import csv
+from functools import partial
+
+fast_dsift = partial(dsift, fast=True, cell_size_vertical=5,
+                     cell_size_horizontal=5, num_bins_horizontal=1,
+                     num_bins_vertical=1, num_or_bins=8)
 
 def load_test_data(testset, n_test_imgs=None):
     test_images = []
@@ -31,7 +36,6 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
     # load landmarked images
     for i in mio.import_images(Path(trainset) / '*', verbose=True, max_images=n_train_imgs):
         # crop image
-        i = convert_from_menpo(i)
         i = i.crop_to_landmarks_proportion(0.5)
         labeller(i, 'PTS', face_ibug_68_to_face_ibug_66)
         # convert it to greyscale if needed
