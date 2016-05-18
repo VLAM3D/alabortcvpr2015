@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 import menpo.io as mio
-from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66
+from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66_trimesh
 from menpo.feature import no_op, dsift
 from alabortcvpr2015.aam import PartsAAMBuilder
 from alabortcvpr2015.unified import GlobalUnifiedBuilder
@@ -14,6 +14,8 @@ import numpy as np
 import csv
 from functools import partial
 
+test_group='face_ibug_66_trimesh'
+
 fast_dsift = partial(dsift, fast=True, cell_size_vertical=3,
                      cell_size_horizontal=3, num_bins_horizontal=1,
                      num_bins_vertical=1, num_or_bins=8)
@@ -22,7 +24,7 @@ def load_test_data(testset, n_test_imgs=None):
     test_images = []
     for i in mio.import_images(Path(testset), verbose=True, max_images=n_test_imgs):    
         i = i.crop_to_landmarks_proportion(0.5)
-        labeller(i, 'PTS', face_ibug_68_to_face_ibug_66)
+        labeller(i, 'PTS', face_ibug_68_to_face_ibug_66_trimesh)
         if i.n_channels == 3:
             i = i.as_greyscale(mode='average')
         test_images.append(i)
@@ -35,7 +37,7 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
     for i in mio.import_images(Path(trainset) / '*', verbose=True, max_images=n_train_imgs):
         # crop image
         i = i.crop_to_landmarks_proportion(0.5)
-        labeller(i, 'PTS', face_ibug_68_to_face_ibug_66)
+        labeller(i, 'PTS', face_ibug_68_to_face_ibug_66_trimesh)
         # convert it to greyscale if needed
         if i.n_channels == 3:
             i = i.as_greyscale(mode='average')
@@ -49,7 +51,7 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
                                    classifier=MCF, offsets=offsets, normalize_parts=False, 
                                    covariance=2, scale_shapes=False, scales=(1, .5),  max_appearance_components = 50)
 
-    unified = builder.build(training_images, group='face_ibug_66', verbose=True)
+    unified = builder.build(training_images, group=test_group, verbose=True)
     fitter = GlobalUnifiedFitter(unified, n_shape=[3, 12], n_appearance=[25, 50])
 
     return fitter
@@ -58,7 +60,7 @@ def test_fitter(fitter, test_images):
     np.random.seed(seed=1)
     fitter_results = []
     for j, i in enumerate(test_images[:]):    
-        gt_s = i.landmarks['face_ibug_66'].lms
+        gt_s = i.landmarks[test_group].lms
         s = fitter.perturb_shape(gt_s, noise_std=0.04)    
         fr = fitter.fit(i, s, gt_shape=gt_s, max_iters=50, prior=True)
         fr.downscale = 0.5    
