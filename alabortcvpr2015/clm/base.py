@@ -29,11 +29,11 @@ class CLM(object):
         self.scale_features = scale_features
 
     def __getstate__(self):
-        import menpofast.feature as menpofast_feature
+        import menpo.feature as menpo_feature
         d = self.__dict__.copy()
 
         features = d.pop('features')
-        d['features'] = SerializableCallable(features, [menpofast_feature])
+        d['features'] = SerializableCallable(features, [menpo_feature])
 
         return d
 

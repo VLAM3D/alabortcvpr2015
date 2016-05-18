@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 import menpo.io as mio
 from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66
@@ -20,7 +21,6 @@ fast_dsift = partial(dsift, fast=True, cell_size_vertical=5,
 def load_test_data(testset, n_test_imgs=None):
     test_images = []
     for i in mio.import_images(Path(testset), verbose=True, max_images=n_test_imgs):    
-        # convert the image from menpo Image to menpofast Image (channels at front)
         i = i.crop_to_landmarks_proportion(0.5)
         labeller(i, 'PTS', face_ibug_68_to_face_ibug_66)
         if i.n_channels == 3:
@@ -58,7 +58,7 @@ def test_fitter(fitter, test_images):
     np.random.seed(seed=1)
     fitter_results = []
     for j, i in enumerate(test_images[:]):    
-        gt_s = i.landmarks['ibug_face_66'].lms
+        gt_s = i.landmarks['face_ibug_66'].lms
         s = fitter.perturb_shape(gt_s, noise_std=0.04)    
         fr = fitter.fit(i, s, gt_shape=gt_s, max_iters=50, prior=True)
         fr.downscale = 0.5    
@@ -80,9 +80,14 @@ if __name__ == "__main__" :
     args = parser.parse_args()
     fitter = train_aic_rlms(args.trainset, args.output, 100)
     
-    with open(args.output, 'wb') as f:
-        # Pickle the 'data' dictionary using the highest protocol available.
-        pickle.dump(fitter, f, pickle.HIGHEST_PROTOCOL)
+    try:
+        with open(args.output, 'wb') as f:
+            # Pickle the 'data' dictionary using the highest protocol available.
+            pickle.dump(fitter, f, pickle.HIGHEST_PROTOCOL)
+    except:
+        # don't skip the test because of an I/O error while pickling
+        e = sys.exc_info()[0]
+        print("Exception while saving the fitter",e)
 
     test_images = load_test_data(args.testset, 16)
     results = test_fitter(fitter, test_images)

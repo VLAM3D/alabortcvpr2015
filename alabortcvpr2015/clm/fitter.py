@@ -1,7 +1,7 @@
 
 
 from alabortcvpr2015.fitter import Fitter
-from alabortcvpr2015.pdm import OrthoPDM
+from menpofit.modelinstance import OrthoPDM
 
 from .algorithm import RLMS
 
