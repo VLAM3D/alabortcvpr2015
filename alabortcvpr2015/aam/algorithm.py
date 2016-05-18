@@ -274,12 +274,11 @@ class GlobalAAMInterface(AAMInterface):
 
     def warp(self, image):
         return image.warp_to_mask(self.algorithm.template.mask,
-                                  self.algorithm.transform)
+                                  self.algorithm.transform,
+                                  warp_landmarks = False)
 
     def gradient(self, image):
-        return image.gradient(
-            nullify_values_at_mask_boundaries=True).as_vector().reshape(
-                (2, image.n_channels, -1))
+        return fast_gradient(image).as_vector().reshape((2, image.n_channels, -1))
 
     def steepest_descent_images(self, gradient, dw_dp):
         # reshape gradient

@@ -134,7 +134,7 @@ class Result(object, metaclass=abc.ABCMeta):
             The final error at the end of the fitting procedure.
         """
         if self.gt_shape is not None:
-            return euclidean_bb_normalised_error(self.final_shape, self.gt_shape, error_type)
+            return euclidean_bb_normalised_error(self.final_shape, self.gt_shape)
         else:
             raise ValueError('Ground truth has not been set, final error '
                              'cannot be computed')
@@ -155,7 +155,7 @@ class Result(object, metaclass=abc.ABCMeta):
             The initial error at the start of the fitting procedure.
         """
         if self.gt_shape is not None:
-            return euclidean_bb_normalised_error(self.initial_shape, self.gt_shape, error_type)
+            return euclidean_bb_normalised_error(self.initial_shape, self.gt_shape)
         else:
             raise ValueError('Ground truth has not been set, final error '
                              'cannot be computed')
