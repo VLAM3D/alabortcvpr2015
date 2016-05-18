@@ -4,7 +4,7 @@ import abc
 import numpy as np
 
 from menpo.feature import gradient as fast_gradient
-from menpo.image import extract_patches
+from menpo.image import extract_patches, MaskedImage
 
 from .result import AAMAlgorithmResult
 
@@ -278,7 +278,9 @@ class GlobalAAMInterface(AAMInterface):
                                   warp_landmarks = False)
 
     def gradient(self, image):
-        return fast_gradient(image).as_vector().reshape((2, image.n_channels, -1))
+        grad = fast_gradient(image)
+        grad.set_boundary_pixels()
+        return grad.as_vector().reshape((2, image.n_channels, -1))
 
     def steepest_descent_images(self, gradient, dw_dp):
         # reshape gradient
