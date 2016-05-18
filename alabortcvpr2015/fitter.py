@@ -313,8 +313,7 @@ class Fitter(object, metaclass=abc.ABCMeta):
 
             shape = algorithm_result.final_shape
             if s != self.scales[-1]:
-                Scale(self.scales[j+1]/s,
-                      n_dims=shape.n_dims).apply_inplace(shape)
+                shape = Scale(self.scales[j+1]/s,n_dims=shape.n_dims).apply(shape)
 
         return algorithm_results
 
