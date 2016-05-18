@@ -1,6 +1,5 @@
 from pathlib import Path
 import menpo.io as mio
-from alabortcvpr2015.unified.utils import convert_from_menpo
 from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66
 from menpo.feature import no_op, dsift
 from alabortcvpr2015.aam import PartsAAMBuilder
@@ -22,7 +21,6 @@ def load_test_data(testset, n_test_imgs=None):
     test_images = []
     for i in mio.import_images(Path(testset), verbose=True, max_images=n_test_imgs):    
         # convert the image from menpo Image to menpofast Image (channels at front)
-        i = convert_from_menpo(i)    
         i = i.crop_to_landmarks_proportion(0.5)
         labeller(i, 'PTS', face_ibug_68_to_face_ibug_66)
         if i.n_channels == 3:
