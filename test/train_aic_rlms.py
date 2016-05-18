@@ -3,6 +3,7 @@ from pathlib import Path
 import menpo.io as mio
 from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66_trimesh
 from menpo.feature import no_op, dsift
+from menpofit.aam import HolisticAAM
 from alabortcvpr2015.aam import PartsAAMBuilder
 from alabortcvpr2015.unified import GlobalUnifiedBuilder
 from alabortcvpr2015.clm.classifier import MCF, LinearSVMLR
@@ -46,14 +47,18 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
 
     offsets = np.meshgrid(range(-0, 1, 1), range(-0, 1, 1))
     offsets = np.asarray([offsets[0].flatten(), offsets[1].flatten()]).T 
-
+        
     builder = GlobalUnifiedBuilder(parts_shape=(17, 17), features=fast_dsift, diagonal=100, 
                                    classifier=MCF, offsets=offsets, normalize_parts=False, 
                                    covariance=2, scale_shapes=False, scales=(1, .5),  max_appearance_components = 50)
 
+    np.seterr(divide ='ignore')
+    np.seterr(invalid ='ignore')
     unified = builder.build(training_images, group=test_group, verbose=True)
-    fitter = GlobalUnifiedFitter(unified, n_shape=[3, 12], n_appearance=[25, 50])
+    np.seterr(divide ='warn')
+    np.seterr(invalid ='warn')
 
+    fitter = GlobalUnifiedFitter(unified, n_shape=[3, 12], n_appearance=[25, 50])
     return fitter
 
 def test_fitter(fitter, test_images):
