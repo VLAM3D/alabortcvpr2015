@@ -14,8 +14,8 @@ import numpy as np
 import csv
 from functools import partial
 
-fast_dsift = partial(dsift, fast=True, cell_size_vertical=5,
-                     cell_size_horizontal=5, num_bins_horizontal=1,
+fast_dsift = partial(dsift, fast=True, cell_size_vertical=3,
+                     cell_size_horizontal=3, num_bins_horizontal=1,
                      num_bins_vertical=1, num_or_bins=8)
 
 def load_test_data(testset, n_test_imgs=None):
