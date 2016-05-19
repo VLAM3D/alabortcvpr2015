@@ -278,9 +278,7 @@ class GlobalAAMInterface(AAMInterface):
                                   warp_landmarks = False)
 
     def gradient(self, image):
-        grad = fast_gradient(image)
-        grad.set_boundary_pixels()
-        return grad.as_vector().reshape((2, image.n_channels, -1))
+        return fast_gradient(image).set_boundary_pixels().as_vector().reshape((2, image.n_channels, -1))
 
     def steepest_descent_images(self, gradient, dw_dp):
         # reshape gradient
