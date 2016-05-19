@@ -55,9 +55,6 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
     np.seterr(divide ='ignore')
     np.seterr(invalid ='ignore')
     unified = builder.build(training_images, group=test_group, verbose=True)
-    np.seterr(divide ='warn')
-    np.seterr(invalid ='warn')
-
     fitter = GlobalUnifiedFitter(unified, n_shape=[3, 12], n_appearance=[25, 50])
     return fitter
 
