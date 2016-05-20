@@ -3,12 +3,10 @@ from pathlib import Path
 import menpo.io as mio
 from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66_trimesh
 from menpo.feature import no_op, dsift
+from menpofit.unified import MCF, UnifiedAAMCLM, UnifiedAAMCLMFitter, AICRLMS
+from menpofit.unified.utils import noisy_align
 from menpofit.aam import HolisticAAM
-from alabortcvpr2015.aam import PartsAAMBuilder
-from alabortcvpr2015.unified import GlobalUnifiedBuilder
-from alabortcvpr2015.clm.classifier import MCF, LinearSVMLR
-from alabortcvpr2015.aam import PartsAAMFitter, AIC, PIC
-from alabortcvpr2015.unified import GlobalUnifiedFitter 
+from menpofit.aam import LucasKanadeAAMFitter
 import argparse
 import pickle
 import numpy as np
@@ -47,15 +45,23 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
 
     offsets = np.meshgrid(range(-0, 1, 1), range(-0, 1, 1))
     offsets = np.asarray([offsets[0].flatten(), offsets[1].flatten()]).T 
-        
-    builder = GlobalUnifiedBuilder(parts_shape=(17, 17), features=fast_dsift, diagonal=100, 
-                                   classifier=MCF, offsets=offsets, normalize_parts=False, 
-                                   covariance=2, scale_shapes=False, scales=(1, .5),  max_appearance_components = 50)
 
     np.seterr(divide ='ignore')
-    np.seterr(invalid ='ignore')
-    unified = builder.build(training_images, group=test_group, verbose=True)
-    fitter = GlobalUnifiedFitter(unified, n_shape=[3, 12], n_appearance=[25, 50])
+    np.seterr(invalid ='ignore')    
+    
+    unified = UnifiedAAMCLM( training_images, 
+                          classifier=MCF,
+                          parts_shape=(17, 17),
+                          offsets=offsets,
+                          group = test_group, 
+                          holistic_features=fast_dsift, 
+                          diagonal=100, 
+                          scales=(1, .5), 
+                          max_appearance_components = min(50,int(n_train_imgs/2)),
+                          verbose=True) 
+
+    n_appearance=[min(25,int(n_train_imgs/2)), min(50,int(n_train_imgs/2))]
+    fitter = UnifiedAAMCLMFitter(unified, algorithm_cls=AICRLMS, n_shape=[3, 12], n_appearance=n_appearance)
     return fitter
 
 def test_fitter(fitter, test_images):
@@ -63,9 +69,8 @@ def test_fitter(fitter, test_images):
     fitter_results = []
     for j, i in enumerate(test_images[:]):    
         gt_s = i.landmarks[test_group].lms
-        s = fitter.perturb_shape(gt_s, noise_std=0.04)    
-        fr = fitter.fit(i, s, gt_shape=gt_s, max_iters=50, prior=True)
-        fr.downscale = 0.5    
+        s = noisy_align(fitter.reference_shape, gt_s, noise_std=0.04).apply(fitter.reference_shape)
+        fr = fitter.fit_from_shape(i, s, gt_shape=gt_s, max_iters=50, prior=True)
         fitter_results.append(fr)    
         print(('Image: ', j))
         print(fr)
