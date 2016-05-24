@@ -3,8 +3,8 @@ from pathlib import Path
 import menpo.io as mio
 from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66_trimesh
 from menpo.feature import no_op, dsift
-from menpofit.unified import MCF, UnifiedAAMCLM, UnifiedAAMCLMFitter, AICRLMS
-from menpofit.unified.utils import noisy_align
+from menpo.transform import Similarity, AlignmentSimilarity
+from menpofit.unified import UnifiedAAMCLM, UnifiedAAMCLMFitter, AICRLMS
 from menpofit.aam import HolisticAAM
 from menpofit.aam import LucasKanadeAAMFitter
 import argparse
@@ -18,6 +18,39 @@ test_group='face_ibug_66_trimesh'
 fast_dsift = partial(dsift, fast=True, cell_size_vertical=3,
                      cell_size_horizontal=3, num_bins_horizontal=1,
                      num_bins_vertical=1, num_or_bins=8)
+
+def noisy_align(source, target, noise_std=0.04, rotation=False):
+    r"""
+    Constructs and perturbs the optimal similarity transform between source
+    to the target by adding white noise to its weights.
+
+    Parameters
+    ----------
+    source: :class:`menpo.shape.PointCloud`
+        The source pointcloud instance used in the alignment
+    target: :class:`menpo.shape.PointCloud`
+        The target pointcloud instance used in the alignment
+    noise_std: float
+        The standard deviation of the white noise
+
+        Default: 0.04
+    rotation: boolean
+        If False the second parameter of the Similarity,
+        which captures captures inplane rotations, is set to 0.
+
+        Default:False
+
+    Returns
+    -------
+    noisy_transform : :class: `menpo.transform.Similarity`
+        The noisy Similarity Transform
+    """
+    transform = AlignmentSimilarity(source, target, rotation=rotation)
+    parameters = transform.as_vector()
+    parameter_range = np.hstack((parameters[:2], target.range()))
+    noise = (parameter_range * noise_std *
+             np.random.randn(transform.n_parameters))
+    return Similarity.init_identity(source.n_dims).from_vector(parameters + noise)
 
 def load_test_data(testset, n_test_imgs=None):
     test_images = []
@@ -49,16 +82,15 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
     np.seterr(divide ='ignore')
     np.seterr(invalid ='ignore')    
     
-    unified = UnifiedAAMCLM( training_images, 
-                          classifier=MCF,
-                          parts_shape=(17, 17),
-                          offsets=offsets,
-                          group = test_group, 
-                          holistic_features=fast_dsift, 
-                          diagonal=100, 
-                          scales=(1, .5), 
-                          max_appearance_components = min(50,int(n_train_imgs/2)),
-                          verbose=True) 
+    unified = UnifiedAAMCLM(training_images, 
+                            parts_shape=(17, 17),
+                            offsets=offsets,
+                            group = test_group, 
+                            holistic_features=fast_dsift, 
+                            diagonal=100, 
+                            scales=(1, .5), 
+                            max_appearance_components = min(50,int(n_train_imgs/2)),
+                            verbose=True) 
 
     n_appearance=[min(25,int(n_train_imgs/2)), min(50,int(n_train_imgs/2))]
     fitter = UnifiedAAMCLMFitter(unified, algorithm_cls=AICRLMS, n_shape=[3, 12], n_appearance=n_appearance)
