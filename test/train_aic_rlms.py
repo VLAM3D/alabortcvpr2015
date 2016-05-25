@@ -19,6 +19,8 @@ fast_dsift = partial(dsift, fast=True, cell_size_vertical=3,
                      cell_size_horizontal=3, num_bins_horizontal=1,
                      num_bins_vertical=1, num_or_bins=8)
 
+# This function was carried over from an old version to reproduce 
+# always the same noise pattern for regression tests
 def noisy_align(source, target, noise_std=0.04, rotation=False):
     r"""
     Constructs and perturbs the optimal similarity transform between source
