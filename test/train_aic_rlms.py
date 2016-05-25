@@ -85,8 +85,8 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
     np.seterr(invalid ='ignore')    
     
     unified = UnifiedAAMCLM(training_images, 
-                            parts_shape=(17, 17),
-                            offsets=offsets,
+                            patch_shape=(17, 17),
+                            sample_offsets=offsets,
                             group = test_group, 
                             holistic_features=fast_dsift, 
                             diagonal=100, 
