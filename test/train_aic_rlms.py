@@ -1,10 +1,11 @@
 import sys
+import os
 from pathlib import Path
 import menpo.io as mio
 from menpo.landmark import labeller, face_ibug_68_to_face_ibug_66_trimesh
 from menpo.feature import no_op, dsift
 from menpo.transform import Similarity, AlignmentSimilarity
-from menpofit.unified import UnifiedAAMCLM, UnifiedAAMCLMFitter, AICRLMS
+from menpofit.unified import UnifiedAAMCLM, UnifiedAAMCLMFitter, AICRLMS, PICRLMS
 from menpofit.aam import HolisticAAM
 from menpofit.aam import LucasKanadeAAMFitter
 import argparse
@@ -117,20 +118,30 @@ if __name__ == "__main__" :
     parser = argparse.ArgumentParser(description='Train basic AAM model.')
     parser.add_argument('trainset', type=str, help='Path to training images folder')
     parser.add_argument('testset', type=str, help='Path to testing images folder')
-    parser.add_argument('output', type=str, help='File path where to write the fitter object')
+    parser.add_argument('fitter', type=str, help='File path where to write the fitter object')
     parser.add_argument('--csv_results', type=str, help='File path where to write the results in CSV format')
+    parser.add_argument('--force_retrain', action='store_true', help='Retrain & overwrite existing fitter')
 
     args = parser.parse_args()
-    fitter = train_aic_rlms(args.trainset, args.output, 100)
     
-    try:
-        with open(args.output, 'wb') as f:
-            # Pickle the 'data' dictionary using the highest protocol available.
-            pickle.dump(fitter, f, pickle.HIGHEST_PROTOCOL)
-    except:
-        # don't skip the test because of an I/O error while pickling
-        e = sys.exc_info()[0]
-        print("Exception while saving the fitter",e)
+    fitter = None
+    if not os.path.exists(args.fitter) or args.force_retrain:
+        fitter = train_aic_rlms(args.trainset, args.fitter, 100)
+    
+        try:
+            with open(args.fitter, 'wb') as f:
+                # Pickle the 'data' dictionary using the highest protocol available.
+                pickle.dump(fitter, f, pickle.HIGHEST_PROTOCOL)
+        except:
+            # don't skip the test because of an I/O error while pickling
+            e = sys.exc_info()[0]
+            print("Exception while saving the fitter",e)
+    else:
+        with open(args.fitter, 'rb') as f:
+            print('Loading ',args.fitter)
+            fitter = pickle.load(f)
+
+    assert(fitter is not None)
 
     test_images = load_test_data(args.testset, 16)
     results = test_fitter(fitter, test_images)
