@@ -91,8 +91,9 @@ def train_aic_rlms(trainset, output, n_train_imgs=None):
                             group = test_group, 
                             holistic_features=fast_dsift, 
                             diagonal=100, 
-                            scales=(1, .5), 
+                            scales=(.5, 1.0), 
                             max_appearance_components = min(50,int(n_train_imgs/2)),
+                            scale_shapes=False,
                             verbose=True) 
 
     n_appearance=[min(25,int(n_train_imgs/2)), min(50,int(n_train_imgs/2))]
@@ -147,7 +148,7 @@ if __name__ == "__main__" :
     results = test_fitter(fitter, test_images)
 
     if args.csv_results is not None:
-        with open(args.csv_results, 'w', newline='') as csvfile:
-            csv_writer = csv.writer(csvfile)
+        with open(args.csv_results, 'w') as csvfile:
+            csv_writer = csv.writer(csvfile, lineterminator='\n')
             csv_writer.writerow(['Initial Error', 'Final Error'])
             csv_writer.writerows([(f.initial_error(), f.final_error()) for f in results])
